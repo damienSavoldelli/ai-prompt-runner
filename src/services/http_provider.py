@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import requests
 
+from src.core.errors import ProviderError
 from src.services.base import BaseProvider
 
 
@@ -35,16 +36,21 @@ class HTTPProvider(BaseProvider):
         }
         payload = {"model": self.config.model, "prompt": prompt}
 
-        response = requests.post(
-            self.config.endpoint,
-            headers=headers,
-            json=payload,
-            timeout=self.config.timeout_seconds,
-        )
-        response.raise_for_status()
-        body = response.json()
+        try:
+            response = requests.post(
+                self.config.endpoint,
+                headers=headers,
+                json=payload,
+                timeout=self.config.timeout_seconds,
+            )
+            response.raise_for_status()
+            body = response.json()
+        except requests.RequestException as exc:
+            raise ProviderError(f"Provider request failed: {exc}") from exc
+        except ValueError as exc:
+            raise ProviderError("Provider returned invalid JSON.") from exc
 
         result = body.get("response")
         if not isinstance(result, str):
-            raise ValueError("Provider response must contain a string field 'response'.")
+            raise ProviderError("Provider response must contain a string field 'response'.")
         return result
