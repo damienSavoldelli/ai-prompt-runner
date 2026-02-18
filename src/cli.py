@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+from dotenv import load_dotenv
 
 from src.core.errors import PromptRunnerError
 from src.core.models import PromptRequest
@@ -41,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint returning process exit code."""
+    load_dotenv()
     parser = build_parser()
     args = parser.parse_args(argv)
 
