@@ -4,12 +4,16 @@ import argparse
 import json
 import os
 import sys
+
 from dotenv import load_dotenv
 
 from src.core.errors import PromptRunnerError
 from src.core.models import PromptRequest
 from src.core.runner import PromptRunner
 from src.services.http_provider import HTTPProvider, HTTPProviderConfig
+
+from pathlib import Path
+from src.utils.file_io import write_json, write_markdown
 
 APP_VERSION = "0.1.0"
 
@@ -39,6 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
     parser.add_argument("--api-model", help=f"AI model name (env AI_API_MODEL: {model_preview}).")
     parser.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
+    parser.add_argument("--out-json", default="outputs/response.json", help="JSON output path.")
+    parser.add_argument("--out-md", default="outputs/response.md", help="Markdown output path.")
     return parser
 
 
@@ -82,6 +88,9 @@ def main(argv: list[str] | None = None) -> int:
                 provider=args.provider,
             )
         )
+
+        write_json(Path(args.out_json), payload)
+        write_markdown(Path(args.out_md), payload)
     except PromptRunnerError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -91,4 +100,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # raise SystemExit(main())
+    sys.exit(main())
