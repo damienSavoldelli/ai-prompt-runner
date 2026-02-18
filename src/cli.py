@@ -13,6 +13,8 @@ from src.services.http_provider import HTTPProvider, HTTPProviderConfig
 
 APP_VERSION = "0.1.0"
 
+
+# Build safe preview values for --help without leaking secrets.
 def _env_preview() -> tuple[str, str, str]:
     """Return safe preview of environment configuration for help text."""
     endpoint = os.getenv("AI_API_ENDPOINT", "").strip() or "not set"
@@ -42,14 +44,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint returning process exit code."""
-    load_dotenv()
-    parser = build_parser()
-    args = parser.parse_args(argv)
+
+    load_dotenv()  # Load .env before building the parser so dynamic help reflects env values.
+    parser = build_parser()  # Build CLI definition (arguments, help text, version flag).
+    args = parser.parse_args(argv)  # Parse runtime arguments into a namespace.
 
     if args.provider != "http":
         print(f"Error: unsupported provider '{args.provider}'", file=sys.stderr)
         return 1
 
+    # CLI flags take precedence over environment variables.
     endpoint = (args.api_endpoint or os.getenv("AI_API_ENDPOINT", "")).strip()
     api_key = (args.api_key or os.getenv("AI_API_KEY", "")).strip()
     model = (args.api_model or os.getenv("AI_API_MODEL", "default")).strip() or "default"
@@ -61,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Error: AI_API_KEY is required", file=sys.stderr)
         return 1
 
+    # Wire infrastructure (provider) to application logic (runner).
     provider = HTTPProvider(
         HTTPProviderConfig(
             endpoint=endpoint,
