@@ -1,6 +1,27 @@
 # ai-prompt-runner
 
+[![CI](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/v/tag/damienSavoldelli/ai-prompt-runner?sort=semver)](https://github.com/damienSavoldelli/ai-prompt-runner/tags)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
+
+## Table of Contents
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Environment Variables](#environment-variables)
+- [CLI Usage](#cli-usage)
+- [Project Structure](#project-structure)
+- [Architecture Principles](#architecture-principles)
+- [Output Examples](#output-examples)
+- [Testing](#testing)
+- [Lint](#lint)
+- [CI](#ci)
+- [Versioning](#versioning)
+- [Release Notes](#release-notes)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
 
 ## Requirements
 
@@ -197,6 +218,10 @@ Create release tags such as:
 - `v1.0.0`
 
 Release history and notes should be published through GitHub Releases.
+
+## Release Notes
+
+See `CHANGELOG.md` for version history.
 
 ## Troubleshooting
 
