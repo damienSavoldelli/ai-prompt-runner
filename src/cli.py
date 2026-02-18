@@ -4,15 +4,14 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from src.core.errors import PromptRunnerError
 from src.core.models import PromptRequest
 from src.core.runner import PromptRunner
-from src.services.http_provider import HTTPProvider, HTTPProviderConfig
-
-from pathlib import Path
+from src.services.provider_factory import ConfigurationError, create_provider
 from src.utils.file_io import write_json, write_markdown
 
 APP_VERSION = "0.1.0"
@@ -28,9 +27,9 @@ def _env_preview() -> tuple[str, str, str]:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the CLI argument parser."""
-    
+
     endpoint_preview, model_preview, key_preview = _env_preview()
-    
+
     parser = argparse.ArgumentParser(
         description=(
             "Send a prompt to an AI API and print normalized JSON output. "
@@ -55,30 +54,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()  # Build CLI definition (arguments, help text, version flag).
     args = parser.parse_args(argv)  # Parse runtime arguments into a namespace.
 
-    if args.provider != "http":
-        print(f"Error: unsupported provider '{args.provider}'", file=sys.stderr)
-        return 1
-
-    # CLI flags take precedence over environment variables.
-    endpoint = (args.api_endpoint or os.getenv("AI_API_ENDPOINT", "")).strip()
-    api_key = (args.api_key or os.getenv("AI_API_KEY", "")).strip()
-    model = (args.api_model or os.getenv("AI_API_MODEL", "default")).strip() or "default"
-
-    if not endpoint:
-        print("Error: AI_API_ENDPOINT is required", file=sys.stderr)
-        return 1
-    if not api_key:
-        print("Error: AI_API_KEY is required", file=sys.stderr)
-        return 1
-
     # Wire infrastructure (provider) to application logic (runner).
-    provider = HTTPProvider(
-        HTTPProviderConfig(
-            endpoint=endpoint,
-            api_key=api_key,
-            model=model,
+    try:
+        provider = create_provider(
+            provider_name=args.provider,
+            api_endpoint=args.api_endpoint,
+            api_key=args.api_key,
+            api_model=args.api_model,
         )
-    )
+    except ConfigurationError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
     runner = PromptRunner(provider=provider)
 
     try:
@@ -100,5 +87,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    # raise SystemExit(main())
     sys.exit(main())
