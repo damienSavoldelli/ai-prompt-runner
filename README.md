@@ -13,6 +13,7 @@ Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
+python3 -m pip install -e .
 ```
 
 ## Environment Variables
@@ -29,21 +30,33 @@ You can start from `.env.example`.
 
 ## CLI Usage
 
+Use either command style:
+- Installed console script: `ai-prompt-runner ...`
+- Module fallback: `python3 -m src.cli ...`
+
 Show help:
 
 ```bash
+ai-prompt-runner --help
 python3 -m src.cli --help
 ```
 
 Run with `.env` values:
 
 ```bash
+ai-prompt-runner --prompt "Hello world"
 python3 -m src.cli --prompt "Hello world"
 ```
 
 Run with explicit API values:
 
 ```bash
+ai-prompt-runner \
+  --prompt "Hello world" \
+  --api-endpoint "http://localhost:11434/api/generate" \
+  --api-key "dummy" \
+  --api-model "llama3.2"
+
 python3 -m src.cli \
   --prompt "Hello world" \
   --api-endpoint "http://localhost:11434/api/generate" \
@@ -54,6 +67,11 @@ python3 -m src.cli \
 Custom output paths:
 
 ```bash
+ai-prompt-runner \
+  --prompt "Hello world" \
+  --out-json outputs/my_response.json \
+  --out-md outputs/my_response.md
+
 python3 -m src.cli \
   --prompt "Hello world" \
   --out-json outputs/my_response.json \
