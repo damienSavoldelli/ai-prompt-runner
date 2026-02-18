@@ -3,6 +3,8 @@
 from src.core.models import PromptRequest, PromptResponse
 from src.services.base import BaseProvider
 
+from src.core.validators import validate_response_payload
+
 
 class PromptRunner:
     """Runs prompts through a provider and returns normalized payload."""
@@ -19,4 +21,6 @@ class PromptRunner:
             response=answer_text,
             provider=request.provider,
         )
-        return response.to_dict()
+        payload = response.to_dict()
+        validate_response_payload(payload)
+        return payload
