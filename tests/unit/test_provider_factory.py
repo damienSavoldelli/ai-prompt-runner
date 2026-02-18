@@ -26,8 +26,9 @@ def test_create_provider_rejects_unknown_provider() -> None:
         create_provider(provider_name="unknown")
 
 
-def test_create_provider_requires_endpoint() -> None:
-    # Endpoint is mandatory for HTTP provider creation.
+def test_create_provider_requires_endpoint(monkeypatch) -> None:
+    # Endpoint is mandatory for HTTP provider creation.    
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False) # Remove env fallback to validate explicit missing endpoint behavior.
     with pytest.raises(ConfigurationError, match="AI_API_ENDPOINT is required"):
         create_provider(
             provider_name="http",
@@ -37,8 +38,9 @@ def test_create_provider_requires_endpoint() -> None:
         )
 
 
-def test_create_provider_requires_api_key() -> None:
-    # API key is mandatory for authenticated provider calls.
+def test_create_provider_requires_api_key(monkeypatch) -> None:
+    # API key is mandatory for authenticated provider calls.   
+    monkeypatch.delenv("AI_API_KEY", raising=False) # Remove env fallback to validate explicit missing API key behavior.
     with pytest.raises(ConfigurationError, match="AI_API_KEY is required"):
         create_provider(
             provider_name="http",
