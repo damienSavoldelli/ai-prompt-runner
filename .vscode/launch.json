@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run ai-prompt-runner",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "src.cli",
+        "cwd": "${workspaceFolder}",
+        "args": [
+            "--prompt", "Hello"
+        ],
+        "envFile": "${workspaceFolder}/.env",
+        "console": "integratedTerminal",
+        "justMyCode": true,
+        "subProcess": false
+      }
+    ]
+  }
