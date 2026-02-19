@@ -6,6 +6,14 @@
 
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
 
+## Public Roadmap & Engineering Approach
+
+This project includes a detailed public roadmap and documentation of its structured AI-assisted development approach.
+
+Explore the full project overview, roadmap and methodology here:
+
+[🔗 AI Prompt Runner – Project Page](https://nutritious-ringer-9ec.notion.site/AI-Prompt-Runner-30ca11bd93a28009bde3fb280d7179fd)
+
 ## Table of Contents
 
 - [Requirements](#requirements)
