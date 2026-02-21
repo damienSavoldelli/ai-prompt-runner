@@ -17,6 +17,7 @@ def create_provider(
     api_endpoint: str | None = None,
     api_key: str | None = None,
     api_model: str | None = None,
+    timeout_seconds: int | None = None,
 ) -> BaseProvider:
     """Create a provider instance from CLI args and environment fallback."""
     # Restrict to supported providers for now (future: add more branches).
@@ -28,6 +29,11 @@ def create_provider(
     key = (api_key or os.getenv("AI_API_KEY", "")).strip()
     model = (api_model or os.getenv("AI_API_MODEL", "default")).strip() or "default"
 
+    # Keep default timeout when not provided, and fail fast on invalid values.
+    resolved_timeout = timeout_seconds if timeout_seconds is not None else 30
+    if resolved_timeout <= 0:
+        raise ConfigurationError("timeout_seconds must be greater than 0.")
+    
     # Fail fast with explicit configuration errors.
     if not endpoint:
         raise ConfigurationError("AI_API_ENDPOINT is required.")
@@ -40,5 +46,6 @@ def create_provider(
             endpoint=endpoint,
             api_key=key,
             model=model,
+            timeout_seconds=resolved_timeout,
         )
     )

@@ -16,6 +16,16 @@ from src.utils.file_io import write_json, write_markdown
 
 APP_VERSION = "0.1.0"
 
+def _positive_int(value: str) -> int:
+    """Argparse validator: timeout must be a strictly positive integer."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("timeout must be an integer.") from exc
+
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("timeout must be a positive integer.")
+    return parsed
 
 # Build safe preview values for --help without leaking secrets.
 def _env_preview() -> tuple[str, str, str]:
@@ -44,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
     parser.add_argument("--out-json", default="outputs/response.json", help="JSON output path.")
     parser.add_argument("--out-md", default="outputs/response.md", help="Markdown output path.")
+    parser.add_argument("--timeout",type=_positive_int,default=30,help="HTTP timeout in seconds (must be > 0).")
     return parser
 
 
@@ -61,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
             api_endpoint=args.api_endpoint,
             api_key=args.api_key,
             api_model=args.api_model,
+            timeout_seconds=args.timeout,
         )
     except ConfigurationError as exc:
         print(f"Error: {exc}", file=sys.stderr)
