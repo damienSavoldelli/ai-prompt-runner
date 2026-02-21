@@ -45,3 +45,46 @@ def test_cli_main_generates_json_and_markdown_files(monkeypatch, tmp_path: Path)
     assert "# AI Prompt Response" in md_content
     assert "## Prompt" in md_content
     assert "## Response" in md_content
+    
+def test_cli_main_forwards_timeout_and_retries_to_provider_factory(monkeypatch, tmp_path: Path) -> None:
+    # Capture arguments forwarded by the CLI to the provider factory.
+    captured: dict = {}
+
+    class FakeProvider:
+        # Return deterministic output to keep this test network-free.
+        def generate(self, prompt: str) -> str:
+            return f"Echo: {prompt}"
+
+    def fake_create_provider(**kwargs):
+        captured.update(kwargs)
+        return FakeProvider()
+
+    # Replace runtime provider creation with a local test double.
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    # Run CLI with explicit timeout/retries and output destinations.
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Forwarding",
+            "--provider",
+            "http",
+            "--timeout",
+            "7",
+            "--retries",
+            "2",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    # Ensure CLI succeeded and forwarded the expected factory parameters.
+    assert exit_code == 0
+    assert captured["provider_name"] == "http"
+    assert captured["timeout_seconds"] == 7
+    assert captured["max_retries"] == 2

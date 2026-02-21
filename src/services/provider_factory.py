@@ -18,6 +18,7 @@ def create_provider(
     api_key: str | None = None,
     api_model: str | None = None,
     timeout_seconds: int | None = None,
+    max_retries: int | None = None,
 ) -> BaseProvider:
     """Create a provider instance from CLI args and environment fallback."""
     # Restrict to supported providers for now (future: add more branches).
@@ -33,6 +34,11 @@ def create_provider(
     resolved_timeout = timeout_seconds if timeout_seconds is not None else 30
     if resolved_timeout <= 0:
         raise ConfigurationError("timeout_seconds must be greater than 0.")
+
+    # Keep default max_retries when not provided, and fail fast on invalid values.
+    resolved_max_retries = max_retries if max_retries is not None else 0
+    if resolved_max_retries < 0:
+        raise ConfigurationError("max_retries must be greater than or equal to 0.")
     
     # Fail fast with explicit configuration errors.
     if not endpoint:
@@ -47,5 +53,6 @@ def create_provider(
             api_key=key,
             model=model,
             timeout_seconds=resolved_timeout,
+            max_retries=resolved_max_retries,
         )
     )

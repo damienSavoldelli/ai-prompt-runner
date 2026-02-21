@@ -7,7 +7,6 @@ import requests
 from src.core.errors import ProviderError
 from src.services.base import BaseProvider
 
-
 @dataclass
 class HTTPProviderConfig:
     """Configuration for the generic HTTP AI provider."""
@@ -16,6 +15,7 @@ class HTTPProviderConfig:
     api_key: str
     timeout_seconds: int = 30
     model: str = "default"
+    max_retries: int = 0
 
 
 class HTTPProvider(BaseProvider):
@@ -36,19 +36,22 @@ class HTTPProvider(BaseProvider):
         }
         payload = {"model": self.config.model, "prompt": prompt}
 
-        try:
-            response = requests.post(
-                self.config.endpoint,
-                headers=headers,
-                json=payload,
-                timeout=self.config.timeout_seconds,
-            )
-            response.raise_for_status()
-            body = response.json()
-        except requests.RequestException as exc:
-            raise ProviderError(f"Provider request failed: {exc}") from exc
-        except ValueError as exc:
-            raise ProviderError("Provider returned invalid JSON.") from exc
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                response = requests.post(
+                    self.config.endpoint,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.config.timeout_seconds,
+                )
+                response.raise_for_status()
+                body = response.json()
+                break
+            except requests.RequestException as exc:
+                if attempt == self.config.max_retries:
+                    raise ProviderError(f"Provider request failed: {exc}") from exc
+            except ValueError as exc:
+                raise ProviderError("Provider returned invalid JSON.") from exc
 
         result = body.get("response")
         if not isinstance(result, str):

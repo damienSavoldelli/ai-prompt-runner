@@ -16,6 +16,17 @@ from src.utils.file_io import write_json, write_markdown
 
 APP_VERSION = "0.1.0"
 
+def _non_negative_int(value: str) -> int:
+    """Argparse validator: retries must be >= 0."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("retries must be an integer.") from exc
+
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("retries must be greater than or equal to 0.")
+    return parsed
+    
 def _positive_int(value: str) -> int:
     """Argparse validator: timeout must be a strictly positive integer."""
     try:
@@ -55,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out-json", default="outputs/response.json", help="JSON output path.")
     parser.add_argument("--out-md", default="outputs/response.md", help="Markdown output path.")
     parser.add_argument("--timeout",type=_positive_int,default=30,help="HTTP timeout in seconds (must be > 0).")
+    parser.add_argument( "--retries", type=_non_negative_int, default=0, help="Maximum retry attempts on network errors (must be >= 0).")
     return parser
 
 
@@ -73,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             api_key=args.api_key,
             api_model=args.api_model,
             timeout_seconds=args.timeout,
+            max_retries=args.retries,
         )
     except ConfigurationError as exc:
         print(f"Error: {exc}", file=sys.stderr)
