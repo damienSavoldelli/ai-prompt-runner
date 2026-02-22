@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.3.1] - 2026-02-22
+
+### Fixed
+- Removed a duplicated CLI E2E test definition in `tests/e2e/test_cli.py` that caused CI lint failure (`ruff` F811).
+
+### Notes
+- Patch release to restore CI health for the v0.3.x test hardening release line.
+- No runtime behavior changes.
+
 ## [v0.3.0] - 2026-02-22
 
 ### Added
