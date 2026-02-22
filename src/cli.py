@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from importlib.metadata import PackageNotFoundError, version
 from dotenv import load_dotenv
 
 from src.core.errors import PromptRunnerError
@@ -14,7 +15,12 @@ from src.core.runner import PromptRunner
 from src.services.provider_factory import ConfigurationError, create_provider
 from src.utils.file_io import write_json, write_markdown
 
-APP_VERSION = "0.1.0"
+def _get_app_version() -> str:
+    """Return installed package version, with a safe fallback for local runs."""
+    try:
+        return version("ai-prompt-runner")
+    except PackageNotFoundError:
+        return "0.1.0-dev"
 
 def _non_negative_int(value: str) -> int:
     """Argparse validator: retries must be >= 0."""
@@ -62,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-endpoint", help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
     parser.add_argument("--api-model", help=f"AI model name (env AI_API_MODEL: {model_preview}).")
-    parser.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {_get_app_version()}")
     parser.add_argument("--out-json", default="outputs/response.json", help="JSON output path.")
     parser.add_argument("--out-md", default="outputs/response.md", help="Markdown output path.")
     parser.add_argument("--timeout",type=_positive_int,default=30,help="HTTP timeout in seconds (must be > 0).")
