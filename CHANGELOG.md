@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.3.0] - 2026-02-22
+
+### Added
+- Added edge-case tests for HTTP provider bad responses (invalid JSON, invalid `response` type, unmapped 4xx).
+- Added validator contract tests for missing metadata keys and invalid field types.
+- Added CLI error-path tests for provider configuration errors and runner failures.
+- Added CLI helper/validator tests for version fallback and argument parsing validation.
+
+### Changed
+- Hardened test suite mocking strategy with deterministic monkeypatch-based doubles for CLI and provider paths.
+- Increased overall test coverage to 99% (`src/`), with 100% coverage on `http_provider` and `validators`.
+
+### Notes
+- Test hardening release focused on edge-case reliability and stable test behavior.
+
 ## [v0.2.0] - 2026-02-22
 
 ### Added
