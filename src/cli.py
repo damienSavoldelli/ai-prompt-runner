@@ -32,6 +32,23 @@ def _non_negative_int(value: str) -> int:
     if parsed < 0:
         raise argparse.ArgumentTypeError("retries must be greater than or equal to 0.")
     return parsed
+
+def _non_blank_text(value: str) -> str:
+    """Argparse validator: text input must not be empty or whitespace only."""
+    normalized = value.strip()
+    if not normalized:
+        raise argparse.ArgumentTypeError("prompt must not be empty.")
+    return normalized
+
+
+def _http_url(value: str) -> str:
+    """Argparse validator: endpoint must be an http/https URL."""
+    normalized = value.strip()
+    if not normalized:
+        raise argparse.ArgumentTypeError("api-endpoint must not be empty.")
+    if not (normalized.startswith("http://") or normalized.startswith("https://")):
+        raise argparse.ArgumentTypeError("api-endpoint must start with http:// or https://.")
+    return normalized
     
 def _positive_int(value: str) -> int:
     """Argparse validator: timeout must be a strictly positive integer."""
@@ -63,9 +80,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Configuration can be passed via CLI args or AI_API_* env vars."
         )
     )
-    parser.add_argument("--prompt", required=True, help="Prompt text to send.")
+    parser.add_argument("--prompt", required=True, type=_non_blank_text, help="Prompt text to send.")
     parser.add_argument("--provider", default="http", help="Provider name (currently: http).")
-    parser.add_argument("--api-endpoint", help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
+    parser.add_argument( "--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
     parser.add_argument("--api-model", help=f"AI model name (env AI_API_MODEL: {model_preview}).")
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_app_version()}")
