@@ -121,28 +121,7 @@ def test_cli_returns_error_on_provider_configuration_error(monkeypatch, capsys) 
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "Error: invalid provider config" in captured.err
-    
-def test_cli_returns_error_on_runner_failure(monkeypatch, capsys) -> None:
-    class FakeProvider:
-        pass
-
-    class FakeRunner:
-        def __init__(self, provider) -> None:
-            self.provider = provider
-
-        def run(self, request):
-            raise cli.PromptRunnerError("runner failed")
-
-    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
-    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
-
-    exit_code = cli.main(["--prompt", "Hello"])
-
-    captured = capsys.readouterr()
-    assert exit_code == 1
-    assert "Error: runner failed" in captured.err
-    
+    assert "Error: invalid provider config" in captured.err   
     
 def test_cli_returns_error_on_runner_failure(monkeypatch, capsys) -> None:
     """Test that if the PromptRunner raises a PromptRunnerError during execution, the CLI catches it and exits with an appropriate error message."""
