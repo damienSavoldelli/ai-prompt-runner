@@ -12,6 +12,7 @@ def test_create_provider_returns_http_provider_with_cli_values() -> None:
         api_key="dummy",
         api_model="llama3.2",
         timeout_seconds=12,
+        max_retries=3,
     )
 
     # Assert: returned provider type and normalized config are correct.
@@ -20,6 +21,7 @@ def test_create_provider_returns_http_provider_with_cli_values() -> None:
     assert provider.config.api_key == "dummy"
     assert provider.config.model == "llama3.2"
     assert provider.config.timeout_seconds == 12
+    assert provider.config.max_retries == 3
 
 
 def test_create_provider_rejects_unknown_provider() -> None:
@@ -61,4 +63,14 @@ def test_create_provider_rejects_invalid_timeout(bad_timeout: int) -> None:
             api_key="dummy",
             api_model="llama3.2",
             timeout_seconds=bad_timeout,
+        )
+
+def test_create_provider_rejects_negative_retries() -> None:
+    with pytest.raises(ConfigurationError, match="max_retries must be greater than or equal to 0"):
+        create_provider(
+            provider_name="http",
+            api_endpoint="http://localhost:11434/api/generate",
+            api_key="dummy",
+            api_model="llama3.2",
+            max_retries=-1,
         )
