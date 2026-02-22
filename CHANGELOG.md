@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.2.0] - 2026-02-22
+
+### Added
+- Configurable HTTP timeout and retry support (`--timeout`, `--retries`) with provider/factory wiring.
+- Provider factory validation for retry configuration (`max_retries >= 0`).
+
+### Changed
+- Improved HTTP provider error mapping by classifying failures by HTTP status code.
+- Strengthened CLI input validation for prompt text, API endpoint URL, timeout, and retries.
+- CLI `--version` now resolves package metadata version (aligned with release metadata).
+
+### Notes
+- Runtime robustness release focused on safer failure handling and input validation.
+
 ## [v0.1.2] - 2026-02-18
 
 ### Changed
