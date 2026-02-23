@@ -182,3 +182,153 @@ def test_http_url_rejects_blank_value() -> None:
 
 def test_http_url_returns_normalized_http_url() -> None:
     assert cli._http_url("  https://example.test/api  ") == "https://example.test/api"
+    
+def test_cli_main_reads_prompt_from_file(monkeypatch, tmp_path: Path) -> None:
+    """Test that the CLI can read prompt text from a file when --prompt-file is used."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("Hello from file\n", encoding="utf-8")
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt-file",
+            str(prompt_file),
+            "--provider",
+            "http",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["prompt"] == "Hello from file"
+    assert payload["response"] == "Echo: Hello from file"
+
+def test_cli_rejects_prompt_and_prompt_file_used_together(tmp_path: Path) -> None:
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("Hello from file\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(
+            [
+                "--prompt",
+                "Hello",
+                "--prompt-file",
+                str(prompt_file),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    
+def test_cli_rejects_missing_prompt_file() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(
+            [
+                "--prompt-file",
+                "does-not-exist.txt",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    
+def test_cli_rejects_blank_prompt_file_content(tmp_path: Path) -> None:
+    prompt_file = tmp_path / "blank.txt"
+    prompt_file.write_text("   \n\t", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(
+            [
+                "--prompt-file",
+                str(prompt_file),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    
+def test_cli_main_reads_prompt_from_stdin_when_no_prompt_args(monkeypatch, tmp_path: Path) -> None:
+    """Test that the CLI can read prompt text from piped stdin when no prompt-related CLI args are provided."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    class FakeStdin:
+        def isatty(self) -> bool:
+            return False
+
+        def read(self) -> str:
+            return "Hello from stdin\n"
+
+    monkeypatch.setattr(cli.sys, "stdin", FakeStdin())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--provider",
+            "http",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["prompt"] == "Hello from stdin"
+    assert payload["response"] == "Echo: Hello from stdin"
+
+def test_cli_rejects_blank_stdin_prompt(monkeypatch) -> None:
+    """Test that if the CLI receives blank input from stdin when no prompt args are provided, it rejects it with an appropriate error message and exit code."""
+    class FakeStdin:
+        def isatty(self) -> bool:
+            return False
+
+        def read(self) -> str:
+            return "   \n\t"
+
+    monkeypatch.setattr(cli.sys, "stdin", FakeStdin())
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main([])
+
+    assert exc_info.value.code == 2
+    
+def test_cli_prefers_prompt_argument_over_stdin(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    class FakeStdin:
+        def isatty(self) -> bool:
+            return False
+
+        def read(self) -> str:
+            return "Hello from stdin\n"
+
+    monkeypatch.setattr(cli.sys, "stdin", FakeStdin())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello from arg",
+            "--provider",
+            "http",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["prompt"] == "Hello from arg"
+    assert payload["response"] == "Echo: Hello from arg"

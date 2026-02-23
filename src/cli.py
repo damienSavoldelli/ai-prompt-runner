@@ -61,6 +61,24 @@ def _positive_int(value: str) -> int:
         raise argparse.ArgumentTypeError("timeout must be a positive integer.")
     return parsed
 
+def _prompt_file_text(value: str) -> str:
+    """Argparse validator: read prompt text from a file and reject empty content."""
+    try:
+        content = Path(value).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise argparse.ArgumentTypeError(f"prompt-file could not be read: {exc}") from exc
+    return _non_blank_text(content)
+
+def _resolve_prompt_text(args: argparse.Namespace) -> str:
+    """Resolve prompt from CLI args first, then piped stdin."""
+    if args.prompt is not None:
+        return args.prompt
+    if args.prompt_file is not None:
+        return args.prompt_file
+    if not sys.stdin.isatty():
+        return _non_blank_text(sys.stdin.read())
+    raise argparse.ArgumentTypeError("prompt is required (use --prompt, --prompt-file, or stdin).")
+
 # Build safe preview values for --help without leaking secrets.
 def _env_preview() -> tuple[str, str, str]:
     """Return safe preview of environment configuration for help text."""
@@ -80,7 +98,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Configuration can be passed via CLI args or AI_API_* env vars."
         )
     )
-    parser.add_argument("--prompt", required=True, type=_non_blank_text, help="Prompt text to send.")
+    prompt_group = parser.add_mutually_exclusive_group(required=False)
+    prompt_group.add_argument("--prompt", type=_non_blank_text, help="Prompt text to send.")
+    prompt_group.add_argument("--prompt-file", type=_prompt_file_text, help="Path to a text file containing the prompt.")
     parser.add_argument("--provider", default="http", help="Provider name (currently: http).")
     parser.add_argument( "--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
@@ -100,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()  # Build CLI definition (arguments, help text, version flag).
     args = parser.parse_args(argv)  # Parse runtime arguments into a namespace.
 
+    # Resolve prompt from CLI args first, then fallback to piped stdin.
+    try:
+      prompt_text = _resolve_prompt_text(args)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
+    
     # Wire infrastructure (provider) to application logic (runner).
     try:
         provider = create_provider(
@@ -119,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = runner.run(
             PromptRequest(
-                prompt_text=args.prompt,
+                prompt_text=prompt_text,
                 provider=args.provider,
             )
         )
