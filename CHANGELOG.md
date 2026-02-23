@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.3.2] - 2026-02-23
+
+### Fixed
+- Restored `ai-prompt-runner` console script usability in editable installs by configuring setuptools package discovery
+for `src*`.
+
+### Notes
+- Patch release for packaging/entrypoint reliability in local development environments.
+- No runtime behavior changes.
+
 ## [v0.3.1] - 2026-02-22
 
 ### Fixed
