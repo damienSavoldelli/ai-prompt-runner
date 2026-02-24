@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.4.0] - 2026-02-24
+
+### Added
+- Added `--prompt-file` support to load prompt text from a UTF-8 file.
+- Added stdin prompt fallback when no `--prompt` / `--prompt-file` is provided.
+- Added CLI examples and exit code documentation in `--help`.
+- Added README coverage command documentation (`pytest-cov` and HTML report).
+
+### Changed
+- Improved CLI prompt input UX with explicit source priority (`--prompt` > `--prompt-file` > piped stdin).
+- Improved CLI help text with clearer prompt-source guidance and usage examples.
+- Introduced named CLI exit code constants for clearer process-level behavior.
+
+### Notes
+- CLI UX release focused on prompt input ergonomics and user-facing help clarity.
+
 ## [v0.3.2] - 2026-02-23
 
 ### Fixed
