@@ -75,6 +75,8 @@ out_json = "outputs/response.json"
 out_md = "outputs/response.md"
 ```
 
+You can start from [`config.example.toml`](config.example.toml) and copy it to a local `config.toml` (do not store secrets in this file)
+
 Configuration precedence is:
 
 `CLI > environment variables (.env / shell env) > TOML config > built-in defaults`

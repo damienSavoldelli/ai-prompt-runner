@@ -1,0 +1,12 @@
+# Example runtime configuration for ai-prompt-runner (v0.5.x)
+# Precedence: CLI > environment variables > TOML config > built-in defaults
+# Do not store secrets here. Use AI_API_KEY (recommended) or --api-key.
+
+[ai_prompt_runner]
+provider = "http"
+api_endpoint = "http://localhost:11434/api/generate"
+api_model = "llama3.2"
+timeout = 30
+retries = 0
+out_json = "outputs/response.json"
+out_md = "outputs/response.md"
