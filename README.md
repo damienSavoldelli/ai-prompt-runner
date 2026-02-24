@@ -19,6 +19,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Environment Variables](#environment-variables)
+- [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
@@ -57,6 +58,31 @@ AI_API_MODEL=default
 
 You can start from `.env.example`.
 
+## Configuration File (Optional)
+
+You can provide a TOML config file with `--config` for non-sensitive runtime defaults.
+
+Example (`config.toml`):
+
+```toml
+[ai_prompt_runner]
+provider = "http"
+api_endpoint = "http://localhost:11434/api/generate"
+api_model = "llama3.2"
+timeout = 30
+retries = 0
+out_json = "outputs/response.json"
+out_md = "outputs/response.md"
+```
+
+Configuration precedence is:
+
+`CLI > environment variables (.env / shell env) > TOML config > built-in defaults`
+
+Security note:
+- `api_key` is intentionally not supported in the TOML config file.
+- Use `AI_API_KEY` (recommended) or `--api-key` for secrets.
+
 ## CLI Usage
 
 Use either command style:
@@ -76,6 +102,15 @@ Run with `.env` values:
 ai-prompt-runner --prompt "Hello world"
 python3 -m src.cli --prompt "Hello world"
 ```
+
+Run with an optional TOML config file:
+
+```bash
+ai-prompt-runner --config config.toml --prompt "Hello world"
+python3 -m src.cli --config config.toml --prompt "Hello world"
+```
+
+CLI flags and environment variables override values from the config file.
 
 Run with explicit API values:
 
