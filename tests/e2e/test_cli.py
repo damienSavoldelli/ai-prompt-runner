@@ -332,3 +332,73 @@ def test_cli_prefers_prompt_argument_over_stdin(monkeypatch, tmp_path: Path) -> 
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["prompt"] == "Hello from arg"
     assert payload["response"] == "Echo: Hello from arg"
+    
+def test_cli_prefers_prompt_file_over_stdin(monkeypatch, tmp_path: Path) -> None:
+    """Test that if both --prompt-file and piped stdin are provided, the CLI prefers the prompt file content."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    class FakeStdin:
+        def isatty(self) -> bool:
+            return False
+
+        def read(self) -> str:
+            return "Hello from stdin\n"
+
+    monkeypatch.setattr(cli.sys, "stdin", FakeStdin())
+
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("Hello from file\n", encoding="utf-8")
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt-file",
+            str(prompt_file),
+            "--provider",
+            "http",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["prompt"] == "Hello from file"
+    assert payload["response"] == "Echo: Hello from file"
+
+
+def test_cli_rejects_missing_prompt_source_when_stdin_is_tty(monkeypatch) -> None:
+    """Test that if no prompt-related CLI args are provided and stdin is a TTY (i.e. not piped), the CLI rejects the missing prompt with an appropriate error message and exit code."""
+    class FakeStdin:
+        def isatty(self) -> bool:
+            return True
+
+        def read(self) -> str:
+            return ""
+
+    monkeypatch.setattr(cli.sys, "stdin", FakeStdin())
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main([])
+
+    assert exc_info.value.code == 2
+
+
+def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
+    """Test that the CLI help text includes documentation of prompt input sources and exit codes for user clarity."""
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--help"])
+
+    assert exc_info.value.code == 0
+
+    captured = capsys.readouterr()
+    assert "--prompt-file" in captured.out
+    assert "piped stdin" in captured.out
+    assert "Exit codes:" in captured.out
+    assert "0  Success" in captured.out
+    assert "1  Runtime error" in captured.out
+    assert "2  Usage/validation error" in captured.out

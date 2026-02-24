@@ -200,6 +200,20 @@ Run E2E tests only:
 python3 -m pytest tests/e2e
 ```
 
+Coverage (requires `pytest-cov`):
+
+```bash
+python3 -m pytest --cov=src --cov-report=term-missing -q
+```
+
+Generate an HTML coverage report:
+
+```bash
+python3 -m pytest --cov=src --cov-report=term-missing --cov-report=html -q
+```
+
+Open `htmlcov/index.html` in a browser to inspect file-by-file coverage.
+
 ## Lint
 
 ```bash

@@ -15,6 +15,11 @@ from src.core.runner import PromptRunner
 from src.services.provider_factory import ConfigurationError, create_provider
 from src.utils.file_io import write_json, write_markdown
 
+# Define exit codes
+EXIT_OK = 0
+EXIT_RUNTIME_ERROR = 1
+EXIT_USAGE_ERROR = 2
+
 def _get_app_version() -> str:
     """Return installed package version, with a safe fallback for local runs."""
     try:
@@ -94,13 +99,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Send a prompt to an AI API and print normalized JSON output. "
+            "Send a prompt to an AI API and print normalized JSON output.\n"
+            "Prompt input sources (priority): --prompt, --prompt-file, then piped stdin.\n"
             "Configuration can be passed via CLI args or AI_API_* env vars."
-        )
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ai-prompt-runner --prompt \"Hello\" --provider http\n"
+            "  ai-prompt-runner --prompt-file prompts/hello.txt --provider http\n"
+            "  echo \"Hello\" | ai-prompt-runner --provider http\n"
+            "\n"
+            "Exit codes:\n"
+            f"  {EXIT_OK}  Success\n"
+            f"  {EXIT_RUNTIME_ERROR}  Runtime error (configuration/provider/output)\n"
+            f"  {EXIT_USAGE_ERROR}  Usage/validation error\n"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     prompt_group = parser.add_mutually_exclusive_group(required=False)
-    prompt_group.add_argument("--prompt", type=_non_blank_text, help="Prompt text to send.")
-    prompt_group.add_argument("--prompt-file", type=_prompt_file_text, help="Path to a text file containing the prompt.")
+    prompt_group.add_argument( "--prompt", type=_non_blank_text, help="Prompt text to send (mutually exclusive with --prompt-file).")
+    prompt_group.add_argument( "--prompt-file", type=_prompt_file_text, help="Path to a UTF-8 text file containing the prompt (mutually exclusive with --prompt).")
     parser.add_argument("--provider", default="http", help="Provider name (currently: http).")
     parser.add_argument( "--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
@@ -122,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Resolve prompt from CLI args first, then fallback to piped stdin.
     try:
-      prompt_text = _resolve_prompt_text(args)
+        prompt_text = _resolve_prompt_text(args)
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
     
@@ -138,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ConfigurationError as exc:
         print(f"Error: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_RUNTIME_ERROR
 
     runner = PromptRunner(provider=provider)
 
@@ -154,10 +172,10 @@ def main(argv: list[str] | None = None) -> int:
         write_markdown(Path(args.out_md), payload)
     except PromptRunnerError as exc:
         print(f"Error: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_RUNTIME_ERROR
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))
-    return 0
+    return EXIT_OK
 
 
 if __name__ == "__main__":
