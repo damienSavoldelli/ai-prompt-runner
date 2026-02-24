@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.5.0] - 2026-02-24
+
+### Added
+- Added optional TOML config file support via `--config` for non-sensitive runtime defaults.
+- Added config validation for file access errors, invalid TOML, invalid section type, and unsupported keys.
+- Added `config.example.toml` with a safe starter configuration (no secrets).
+- Added CLI and E2E tests covering config parsing, precedence, and validation edge cases.
+
+### Changed
+- Introduced explicit configuration precedence: `CLI > environment variables > TOML config > built-in defaults`.
+- Improved README documentation for config usage, precedence, and security guidance.
+
+### Notes
+- `api_key` is intentionally not supported in TOML config in `v0.5.x`; use `AI_API_KEY` or `--api-key`.
+- Configuration layer release focused on safe defaults and predictable override behavior.
+
 ## [v0.4.0] - 2026-02-24
 
 ### Added
