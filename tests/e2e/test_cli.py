@@ -15,7 +15,7 @@ class FakeProvider:
 
 
 def test_cli_main_generates_json_and_markdown_files(monkeypatch, tmp_path: Path) -> None:
-    """Test that the CLI generates expected JSON and Markdown files from a prompt, using a fake provider to avoid real API calls."""
+    """Generate JSON/Markdown outputs from a prompt using a fake provider."""
     # Replace runtime provider creation to avoid real network calls.
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
@@ -49,9 +49,10 @@ def test_cli_main_generates_json_and_markdown_files(monkeypatch, tmp_path: Path)
     assert "# AI Prompt Response" in md_content
     assert "## Prompt" in md_content
     assert "## Response" in md_content
-    
+
+
 def test_cli_main_forwards_timeout_and_retries_to_provider_factory(monkeypatch, tmp_path: Path) -> None:
-    """Test that CLI arguments for timeout and retries are correctly forwarded to the provider factory."""
+    """Forward timeout/retries CLI values to the provider factory."""
     # Capture arguments forwarded by the CLI to the provider factory.
     captured: dict = {}
 
@@ -93,9 +94,10 @@ def test_cli_main_forwards_timeout_and_retries_to_provider_factory(monkeypatch, 
     assert captured["provider_name"] == "http"
     assert captured["timeout_seconds"] == 7
     assert captured["max_retries"] == 2
-    
+
+
 def test_cli_rejects_blank_prompt() -> None:
-    """Test that the CLI rejects a blank prompt with an appropriate error message and exit code."""
+    """Reject a blank prompt argument as a usage error."""
     with pytest.raises(SystemExit) as exc_info:
         cli.main(["--prompt", "   "])
 
@@ -103,7 +105,7 @@ def test_cli_rejects_blank_prompt() -> None:
 
 
 def test_cli_rejects_invalid_api_endpoint_scheme() -> None:
-    """Test that the CLI rejects an API endpoint with an unsupported URL scheme, providing a clear error message and exit code."""
+    """Reject an API endpoint that does not use http/https."""
     with pytest.raises(SystemExit) as exc_info:
         cli.main(["--prompt", "Hello", "--api-endpoint", "ftp://example.test"])
 
@@ -111,7 +113,8 @@ def test_cli_rejects_invalid_api_endpoint_scheme() -> None:
 
 
 def test_cli_returns_error_on_provider_configuration_error(monkeypatch, capsys) -> None:
-    """Test that if the provider factory raises a ConfigurationError due to invalid config, the CLI catches it and exits with an error message."""
+    """Return a runtime error when provider creation fails with configuration error."""
+    
     def fake_create_provider(**kwargs):
         raise cli.ConfigurationError("invalid provider config")
 
@@ -121,10 +124,11 @@ def test_cli_returns_error_on_provider_configuration_error(monkeypatch, capsys) 
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "Error: invalid provider config" in captured.err   
-    
+    assert "Error: invalid provider config" in captured.err
+
+
 def test_cli_returns_error_on_runner_failure(monkeypatch, capsys) -> None:
-    """Test that if the PromptRunner raises a PromptRunnerError during execution, the CLI catches it and exits with an appropriate error message."""
+    """Return a runtime error when the runner raises a domain error."""
     class FakeProvider:
         pass
 
@@ -146,7 +150,7 @@ def test_cli_returns_error_on_runner_failure(monkeypatch, capsys) -> None:
 
 
 def test_get_app_version_falls_back_when_metadata_is_missing(monkeypatch) -> None:
-    """Test that if the package metadata is missing (e.g. during development), _get_app_version falls back to a default version string without raising an exception."""
+    """Fallback to a dev version when package metadata is unavailable."""
     def fake_version(_: str) -> str:
         raise cli.PackageNotFoundError
 
@@ -156,35 +160,42 @@ def test_get_app_version_falls_back_when_metadata_is_missing(monkeypatch) -> Non
 
 
 def test_non_negative_int_rejects_non_integer() -> None:
+    """Reject non-integer retry values in the CLI validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="retries must be an integer"):
         cli._non_negative_int("abc")
 
 
 def test_non_negative_int_rejects_negative_value() -> None:
+    """Reject negative retry values in the CLI validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="greater than or equal to 0"):
         cli._non_negative_int("-1")
 
 
 def test_positive_int_rejects_non_integer() -> None:
+    """Reject non-integer timeout values in the CLI validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="timeout must be an integer"):
         cli._positive_int("abc")
 
 
 def test_positive_int_rejects_zero() -> None:
+    """Reject zero timeout values in the CLI validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="timeout must be a positive integer"):
         cli._positive_int("0")
 
 
 def test_http_url_rejects_blank_value() -> None:
+    """Reject blank endpoint values in the URL validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="api-endpoint must not be empty"):
         cli._http_url("   ")
 
 
 def test_http_url_returns_normalized_http_url() -> None:
+    """Normalize surrounding whitespace for valid HTTP(S) endpoint values."""
     assert cli._http_url("  https://example.test/api  ") == "https://example.test/api"
-    
+
+
 def test_cli_main_reads_prompt_from_file(monkeypatch, tmp_path: Path) -> None:
-    """Test that the CLI can read prompt text from a file when --prompt-file is used."""
+    """Read prompt content from --prompt-file and run the CLI successfully."""
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
     prompt_file = tmp_path / "prompt.txt"
@@ -211,7 +222,9 @@ def test_cli_main_reads_prompt_from_file(monkeypatch, tmp_path: Path) -> None:
     assert payload["prompt"] == "Hello from file"
     assert payload["response"] == "Echo: Hello from file"
 
+
 def test_cli_rejects_prompt_and_prompt_file_used_together(tmp_path: Path) -> None:
+    """Reject mutually exclusive prompt sources when both flags are provided."""
     prompt_file = tmp_path / "prompt.txt"
     prompt_file.write_text("Hello from file\n", encoding="utf-8")
 
@@ -226,8 +239,10 @@ def test_cli_rejects_prompt_and_prompt_file_used_together(tmp_path: Path) -> Non
         )
 
     assert exc_info.value.code == 2
-    
+
+
 def test_cli_rejects_missing_prompt_file() -> None:
+    """Reject --prompt-file when the target file does not exist."""
     with pytest.raises(SystemExit) as exc_info:
         cli.main(
             [
@@ -237,8 +252,10 @@ def test_cli_rejects_missing_prompt_file() -> None:
         )
 
     assert exc_info.value.code == 2
-    
+
+
 def test_cli_rejects_blank_prompt_file_content(tmp_path: Path) -> None:
+    """Reject --prompt-file when the file content is blank/whitespace-only."""
     prompt_file = tmp_path / "blank.txt"
     prompt_file.write_text("   \n\t", encoding="utf-8")
 
@@ -251,9 +268,10 @@ def test_cli_rejects_blank_prompt_file_content(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.code == 2
-    
+
+
 def test_cli_main_reads_prompt_from_stdin_when_no_prompt_args(monkeypatch, tmp_path: Path) -> None:
-    """Test that the CLI can read prompt text from piped stdin when no prompt-related CLI args are provided."""
+    """Read prompt content from piped stdin when no prompt flags are provided."""
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
     class FakeStdin:
@@ -284,8 +302,9 @@ def test_cli_main_reads_prompt_from_stdin_when_no_prompt_args(monkeypatch, tmp_p
     assert payload["prompt"] == "Hello from stdin"
     assert payload["response"] == "Echo: Hello from stdin"
 
+
 def test_cli_rejects_blank_stdin_prompt(monkeypatch) -> None:
-    """Test that if the CLI receives blank input from stdin when no prompt args are provided, it rejects it with an appropriate error message and exit code."""
+    """Reject blank piped stdin content when used as the prompt source."""
     class FakeStdin:
         def isatty(self) -> bool:
             return False
@@ -299,8 +318,10 @@ def test_cli_rejects_blank_stdin_prompt(monkeypatch) -> None:
         cli.main([])
 
     assert exc_info.value.code == 2
-    
+
+
 def test_cli_prefers_prompt_argument_over_stdin(monkeypatch, tmp_path: Path) -> None:
+    """Prefer --prompt over piped stdin when both sources are available."""
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
     class FakeStdin:
@@ -332,9 +353,10 @@ def test_cli_prefers_prompt_argument_over_stdin(monkeypatch, tmp_path: Path) -> 
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["prompt"] == "Hello from arg"
     assert payload["response"] == "Echo: Hello from arg"
-    
+
+
 def test_cli_prefers_prompt_file_over_stdin(monkeypatch, tmp_path: Path) -> None:
-    """Test that if both --prompt-file and piped stdin are provided, the CLI prefers the prompt file content."""
+    """Prefer --prompt-file over piped stdin when both sources are available."""
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
     class FakeStdin:
@@ -372,7 +394,7 @@ def test_cli_prefers_prompt_file_over_stdin(monkeypatch, tmp_path: Path) -> None
 
 
 def test_cli_rejects_missing_prompt_source_when_stdin_is_tty(monkeypatch) -> None:
-    """Test that if no prompt-related CLI args are provided and stdin is a TTY (i.e. not piped), the CLI rejects the missing prompt with an appropriate error message and exit code."""
+    """Reject missing prompt input when no flags are provided and stdin is a TTY."""
     class FakeStdin:
         def isatty(self) -> bool:
             return True
@@ -389,16 +411,201 @@ def test_cli_rejects_missing_prompt_source_when_stdin_is_tty(monkeypatch) -> Non
 
 
 def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
-    """Test that the CLI help text includes documentation of prompt input sources and exit codes for user clarity."""
+    """Document prompt sources and exit codes in the CLI help output."""
     with pytest.raises(SystemExit) as exc_info:
         cli.main(["--help"])
 
     assert exc_info.value.code == 0
 
+    # argparse writes --help output to stdout and exits with code 0.
     captured = capsys.readouterr()
     assert "--prompt-file" in captured.out
+    assert "--config" in captured.out
     assert "piped stdin" in captured.out
     assert "Exit codes:" in captured.out
     assert "0  Success" in captured.out
     assert "1  Runtime error" in captured.out
     assert "2  Usage/validation error" in captured.out
+
+
+def test_cli_rejects_missing_config_file() -> None:
+    """Reject --config when the referenced TOML file does not exist."""
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--config", "does-not-exist.toml", "--prompt", "Hello"])
+
+    assert exc_info.value.code == 2
+
+
+def test_cli_rejects_invalid_toml_config_file(tmp_path: Path) -> None:
+    """Reject --config when the file content is not valid TOML."""
+    config_file = tmp_path / "bad.toml"
+    config_file.write_text("not = [valid", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--config", str(config_file), "--prompt", "Hello"])
+
+    assert exc_info.value.code == 2
+
+
+def test_cli_uses_config_file_values_for_runtime_options(monkeypatch, tmp_path: Path) -> None:
+    """Use TOML config values for runtime options when CLI/env do not override them."""
+
+    # Isolate this test from local env/.env so TOML values are actually exercised.
+    monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False)
+    monkeypatch.delenv("AI_API_MODEL", raising=False)
+
+    captured: dict = {}
+
+    class FakeProvider:
+        def generate(self, prompt: str) -> str:
+            return f"Echo: {prompt}"
+
+    def fake_create_provider(**kwargs):
+        # Capture resolved runtime configuration without performing real I/O.
+        captured.update(kwargs)
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+
+    # Build a valid TOML config file for runtime configuration resolution.
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        (
+            "[ai_prompt_runner]\n"
+            "provider = \"http\"\n"
+            "api_endpoint = \"http://localhost:11434/api/generate\"\n"
+            "api_model = \"llama3.2\"\n"
+            "timeout = 7\n"
+            "retries = 2\n"
+            "out_json = \"outputs/from-config.json\"\n"
+            "out_md = \"outputs/from-config.md\"\n"
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(
+        [
+            "--config",
+            str(config_file),
+            "--prompt",
+            "Hello from config",
+            "--api-key",
+            "dummy",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["provider_name"] == "http"
+    assert captured["api_endpoint"] == "http://localhost:11434/api/generate"
+    assert captured["api_model"] == "llama3.2"
+    assert captured["timeout_seconds"] == 7
+    assert captured["max_retries"] == 2
+
+
+def test_cli_rejects_api_key_in_config_file(tmp_path: Path) -> None:
+    """Reject secrets in TOML config and require --api-key/AI_API_KEY instead."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        (
+            "[ai_prompt_runner]\n"
+            "api_key = \"secret\"\n"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--config", str(config_file), "--prompt", "Hello"])
+
+    assert exc_info.value.code == 2
+
+
+def test_cli_rejects_unknown_config_key(tmp_path: Path) -> None:
+    """Reject unknown keys in the [ai_prompt_runner] config section."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        (
+            "[ai_prompt_runner]\n"
+            "unknown_key = \"value\"\n"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--config", str(config_file), "--prompt", "Hello"])
+
+    assert exc_info.value.code == 2
+    
+def test_cli_rejects_non_table_ai_prompt_runner_config_section(tmp_path: Path) -> None:
+    """Reject a non-table [ai_prompt_runner] config section."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        'ai_prompt_runner = "not-a-table"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--config", str(config_file), "--prompt", "Hello"])
+
+    assert exc_info.value.code == 2
+    
+
+def test_cli_prefers_cli_over_env_and_config_for_api_model(monkeypatch, tmp_path: Path) -> None:
+    """CLI values must override both environment variables and TOML config values."""
+    captured: dict = {}
+
+    class FakeProvider:
+        def generate(self, prompt: str) -> str:
+            return f"Echo: {prompt}"
+
+    def fake_create_provider(**kwargs):
+        captured.update(kwargs)
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+    monkeypatch.setenv("AI_API_MODEL", "env-model")
+
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        (
+            "[ai_prompt_runner]\n"
+            "api_endpoint = \"http://localhost:11434/api/generate\"\n"
+            "api_model = \"config-model\"\n"
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(
+        [
+            "--config",
+            str(config_file),
+            "--prompt",
+            "Hello",
+            "--api-key",
+            "dummy",
+            "--api-model",
+            "cli-model",
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["api_model"] == "cli-model"
+
+
+def test_merge_runtime_config_rejects_non_mapping_config() -> None:
+    """Reject a parsed config payload that does not resolve to a mapping."""
+    args = argparse.Namespace(config=["not-a-mapping"])
+
+    with pytest.raises(argparse.ArgumentTypeError, match="config must resolve to a mapping"):
+        cli._merge_runtime_config(args)
+        
+        
+def test_load_config_file_rejects_non_mapping_root(monkeypatch, tmp_path: Path) -> None:
+    """Reject a TOML payload whose parsed root is not a mapping."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("ignored = true\n", encoding="utf-8")
+
+    monkeypatch.setattr(cli.tomllib, "load", lambda fh: ["not-a-mapping"])
+
+    with pytest.raises(argparse.ArgumentTypeError, match="config root must be a TOML table"):
+        cli._load_config_file(str(config_file))
