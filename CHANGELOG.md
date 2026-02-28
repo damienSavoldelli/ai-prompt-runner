@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.9.0] - 2026-02-28
+
+### Added
+- Added `docs/architecture.md` to formalize the repository structure, architectural
+boundaries, and stateless execution model.
+- Added `docs/cli-reference.md` to document the CLI interface, prompt input modes,
+arguments, and exit codes.
+- Added `docs/configuration.md` to document configuration sources, precedence, supported
+TOML keys, and secret-handling expectations.
+- Added `docs/testing.md` to document the test strategy, contract validation layers, and CI
+quality gates.
+- Added `docs/migration.md` to summarize compatibility-relevant project evolution from
+`v0.1.x` through `v0.8.x`.
+
+### Changed
+- Updated `README.md` to reference the technical documentation set under `docs/`.
+- Aligned the documented project structure with the current repository layout.
+- Consolidated the documentation baseline for the release-candidate phase.
+
+### Notes
+- `v0.9.0` is the release-candidate documentation consolidation milestone.
+- No CLI interface, provider contract, or output contract changes were introduced.
+
 ## [v0.8.0] - 2026-02-28
 
 ### Added
