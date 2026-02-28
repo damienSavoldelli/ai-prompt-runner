@@ -52,6 +52,7 @@ Explore the full project overview, roadmap and methodology here:
 - [CI](#ci)
 - [Versioning](#versioning)
 - [Release Notes](#release-notes)
+- [Release Checklist](#release-checklist)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
@@ -382,6 +383,10 @@ Release history and notes should be published through GitHub Releases.
 ## Release Notes
 
 See `CHANGELOG.md` for version history.
+
+## Release Checklist
+
+See [`docs/release-checklist.md`](docs/release-checklist.md) for the standardized release preparation flow.
 
 ## Troubleshooting
 
