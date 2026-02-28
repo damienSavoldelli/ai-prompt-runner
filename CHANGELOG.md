@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.6.1] - 2026-02-28
+
+### Changed
+- Clarified the README design philosophy to emphasize the project's stateless execution
+model and architectural boundaries.
+- Documented the provider contract architecture, including reusable contract tests and the
+role of `MockProvider` in deterministic validation.
+
+### Notes
+- `v0.6.1` is a documentation-only patch release.
+- No runtime behavior, CLI interface, or provider selection logic changed.
+
 ## [v0.6.0] - 2026-02-28
 
 ### Added
