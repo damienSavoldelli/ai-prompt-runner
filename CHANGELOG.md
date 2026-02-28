@@ -2,24 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.0.0] - 2026-02-28
+
+### Added
+- Added complete technical documentation covering architecture, CLI reference,
+configuration, testing, migration history, output contract, and release workflow.
+- Added formal output contract schema validation and backward compatibility fixtures.
+- Added reusable provider contract tests with an official deterministic `MockProvider`.
+- Added package build verification, CI coverage enforcement, and a documented `uv`development workflow.
+
+### Changed
+- Stabilized the CLI as a stateless execution layer with documented configuration precedence and clear exit-code behavior.
+- Formalized the provider abstraction and the JSON output contract as stable project interfaces.
+- Hardened CI, packaging, and release discipline for production-ready validation.
+
+### Notes
+- `v1.0.0` marks the first stable release of `ai-prompt-runner`.
+- The project is now positioned as a stable, extensible, stateless AI CLI with versioned output contracts and reproducible validation workflows.
+- Streaming, orchestration, agents, memory, and higher-level workflow behavior remain intentionally out of scope.
+
 ## [v0.9.0] - 2026-02-28
 
 ### Added
-- Added `docs/architecture.md` to formalize the repository structure, architectural
-boundaries, and stateless execution model.
-- Added `docs/cli-reference.md` to document the CLI interface, prompt input modes,
-arguments, and exit codes.
-- Added `docs/configuration.md` to document configuration sources, precedence, supported
-TOML keys, and secret-handling expectations.
-- Added `docs/testing.md` to document the test strategy, contract validation layers, and CI
-quality gates.
-- Added `docs/migration.md` to summarize compatibility-relevant project evolution from
-`v0.1.x` through `v0.8.x`.
+- Added `docs/architecture.md` to formalize the repository structure, architectural boundaries, and stateless execution model.
+- Added `docs/cli-reference.md` to document the CLI interface, prompt input modes, arguments, and exit codes.
+- Added `docs/configuration.md` to document configuration sources, precedence, supported TOML keys, and secret-handling expectations.
+- Added `docs/testing.md` to document the test strategy, contract validation layers, and CI quality gates.
+- Added `docs/migration.md` to summarize compatibility-relevant project evolution from `v0.1.x` through `v0.8.x`.
 
 ### Changed
 - Updated `README.md` to reference the technical documentation set under `docs/`.
-- Aligned the documented project structure with the current repository layout.
-- Consolidated the documentation baseline for the release-candidate phase.
+- Aligned the documented project structure with the current repository layout. 
+- Consolidated the documentation baseline for the release-candidate phase. 
 
 ### Notes
 - `v0.9.0` is the release-candidate documentation consolidation milestone.
@@ -30,8 +44,7 @@ quality gates.
 ### Added
 - Added package build verification in CI using `python3 -m build`.
 - Added coverage enforcement in CI with `--cov-fail-under=95`.
-- Added `uv` development workflow support with declared development dependencies and
-`uv.lock`.
+- Added `uv` development workflow support with declared development dependencies and `uv.lock`.
 - Added a versioned release checklist in `docs/release-checklist.md`.
 
 ### Changed
@@ -40,8 +53,7 @@ quality gates.
 - Updated the README to document the `uv` workflow, CI expectations, and release checklist.
 
 ### Notes
-- `v0.8.0` focuses on CI hardening, packaging reliability, and development workflow
-modernization.
+- `v0.8.0` focuses on CI hardening, packaging reliability, and development workflow modernization.
 - Docker exploration was intentionally deferred and is not part of this release.
 
 ## [v0.7.0] - 2026-02-28
@@ -49,10 +61,8 @@ modernization.
 ### Added
 - Added `schemas/response.schema.json` to formalize the official JSON output contract.
 - Added schema-based contract tests for current response payload validation.
-- Added backward compatibility fixtures and schema compatibility tests for historical
-payloads.
-- Added `docs/output-contract.md` to document the response structure, stability guarantees,
-and compatibility policy.
+- Added backward compatibility fixtures and schema compatibility tests for historical payloads.
+- Added `docs/output-contract.md` to document the response structure, stability guarantees, and compatibility policy.
 
 ### Changed
 - Updated `README.md` to reference the formal output contract documentation.
@@ -65,10 +75,8 @@ and compatibility policy.
 ## [v0.6.1] - 2026-02-28
 
 ### Changed
-- Clarified the README design philosophy to emphasize the project's stateless execution
-model and architectural boundaries.
-- Documented the provider contract architecture, including reusable contract tests and the
-role of `MockProvider` in deterministic validation.
+- Clarified the README design philosophy to emphasize the project's stateless execution model and architectural boundaries.
+- Documented the provider contract architecture, including reusable contract tests and the role of `MockProvider` in deterministic validation.
 
 ### Notes
 - `v0.6.1` is a documentation-only patch release.
@@ -77,8 +85,7 @@ role of `MockProvider` in deterministic validation.
 ## [v0.6.0] - 2026-02-28
 
 ### Added
-- Added `MockProvider` as an official deterministic provider implementation for
-architecture validation and local tests.
+- Added `MockProvider` as an official deterministic provider implementation for architecture validation and local tests.
 - Added reusable provider contract tests covering shared success and failure behavior.
 
 ### Changed
@@ -86,8 +93,7 @@ architecture validation and local tests.
 
 ### Notes
 - `HTTPProvider` remains the only runtime provider exposed by the factory in `v0.6.0`.
-- This release focuses on provider abstraction stability without expanding CLI or runtime
-features.
+- This release focuses on provider abstraction stability without expanding CLI or runtime features.
 
 ## [v0.5.0] - 2026-02-24
 
@@ -124,8 +130,7 @@ features.
 ## [v0.3.2] - 2026-02-23
 
 ### Fixed
-- Restored `ai-prompt-runner` console script usability in editable installs by configuring setuptools package discovery
-for `src*`.
+- Restored `ai-prompt-runner` console script usability in editable installs by configuring setuptools package discovery for `src*`.
 
 ### Notes
 - Patch release for packaging/entrypoint reliability in local development environments.
