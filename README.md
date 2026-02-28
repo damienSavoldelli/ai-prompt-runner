@@ -39,6 +39,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Design Philosophy](#design-philosophy)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [uv Workflow](#uv-workflow)
 - [Environment Variables](#environment-variables)
 - [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
@@ -67,6 +68,42 @@ source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 python3 -m pip install -e .
 ```
+
+## uv Workflow
+
+`uv` is supported as the modern dependency and task runner workflow for local development.
+
+Sync the project with development dependencies:
+
+```bash
+uv sync --extra dev
+```
+
+Run the test suite:
+
+```bash
+uv run pytest
+```
+
+Run tests with the CI coverage gate:
+
+```bash
+uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=95
+```
+
+Run lint checks:
+
+```bash
+uv run ruff check .
+```
+
+Build package distributions:
+
+```bash
+uv run python -m build
+```
+
+`pip`-based commands remain supported, but `uv` is the recommended workflow for local development in `v0.8.x`.
 
 ## Environment Variables
 
@@ -255,6 +292,12 @@ Run all tests:
 python3 -m pytest
 ```
 
+Using `uv`:
+
+```bash
+uv run pytest
+```
+
 Run unit tests only:
 
 ```bash
@@ -273,10 +316,22 @@ Coverage (requires `pytest-cov`):
 python3 -m pytest --cov=src --cov-report=term-missing -q
 ```
 
+Using `uv`:
+
+```bash
+uv run pytest --cov=src --cov-report=term-missing -q
+```
+
 Generate an HTML coverage report:
 
 ```bash
 python3 -m pytest --cov=src --cov-report=term-missing --cov-report=html -q
+```
+
+Using `uv`:
+
+```bash
+uv run pytest --cov=src --cov-report=term-missing --cov-report=html -q
 ```
 
 Coverage gate used in CI:
@@ -293,6 +348,12 @@ Open `htmlcov/index.html` in a browser to inspect file-by-file coverage.
 ruff check .
 ```
 
+Using `uv`:
+
+```bash
+uv run ruff check .
+```
+
 ## CI
 
 GitHub Actions workflow runs on:
@@ -305,6 +366,8 @@ Pipeline includes:
 - package build verification (`python3 -m build`)
 - build artifact verification
 - tests with coverage enforcement (`--cov-fail-under=95`)
+
+`uv` is supported for local development workflows, while CI currently installs dependencies from `requirements.txt`.
 
 ## Versioning
 
