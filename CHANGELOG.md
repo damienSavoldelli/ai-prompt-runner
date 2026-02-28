@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.8.0] - 2026-02-28
+
+### Added
+- Added package build verification in CI using `python3 -m build`.
+- Added coverage enforcement in CI with `--cov-fail-under=95`.
+- Added `uv` development workflow support with declared development dependencies and
+`uv.lock`.
+- Added a versioned release checklist in `docs/release-checklist.md`.
+
+### Changed
+- Hardened the CI workflow to validate lint, build artifacts, and coverage gates.
+- Declared explicit Ruff project settings in `pyproject.toml`.
+- Updated the README to document the `uv` workflow, CI expectations, and release checklist.
+
+### Notes
+- `v0.8.0` focuses on CI hardening, packaging reliability, and development workflow
+modernization.
+- Docker exploration was intentionally deferred and is not part of this release.
+
 ## [v0.7.0] - 2026-02-28
 
 ### Added
