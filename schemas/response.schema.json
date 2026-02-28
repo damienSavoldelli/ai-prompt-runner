@@ -1,0 +1,29 @@
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ai-prompt-runner response payload",
+    "type": "object",
+    "required": ["prompt", "response", "metadata"],
+    "additionalProperties": false,
+    "properties": {
+      "prompt": {
+        "type": "string"
+      },
+      "response": {
+        "type": "string"
+      },
+      "metadata": {
+        "type": "object",
+        "required": ["provider", "timestamp_utc"],
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }

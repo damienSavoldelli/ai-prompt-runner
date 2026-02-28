@@ -1,0 +1,8 @@
+{
+    "prompt": "Hello config",
+    "response": "Echo: Hello config",
+    "metadata": {
+        "provider": "http",
+        "timestamp_utc": "2026-02-24T19:15:00+00:00"
+    }
+}

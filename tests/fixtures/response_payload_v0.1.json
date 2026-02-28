@@ -1,0 +1,8 @@
+{
+    "prompt": "Hello world",
+    "response": "Echo: Hello world",
+    "metadata": {
+        "provider": "http",
+        "timestamp_utc": "2026-02-18T13:43:51.236575+00:00"
+    }
+}
