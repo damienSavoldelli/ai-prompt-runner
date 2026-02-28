@@ -44,6 +44,7 @@ Explore the full project overview, roadmap and methodology here:
 - [CLI Usage](#cli-usage)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
+- [Output Contract](#output-contract)
 - [Output Examples](#output-examples)
 - [Testing](#testing)
 - [Lint](#lint)
@@ -205,6 +206,12 @@ Root/
 - Provider layer follows an explicit contract enforced by reusable contract tests.
 - `MockProvider` ensures deterministic behavior and decouples validation from network dependencies.
 - `src/utils/`: file persistence helpers.
+
+## Output Contract
+
+The normalized JSON response is treated as a stable contract and is formally defined by [`schemas/response.schema.json`](schemas/response.schema.json).
+
+Detailed contract documentation is available in [`docs/output-contract.md`](docs/output-contract.md).
 
 ## Output Examples
 
