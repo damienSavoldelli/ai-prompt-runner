@@ -1,11 +1,12 @@
 import pytest
 
+from src.core.errors import ProviderError
 from src.services.base import BaseProvider
 from src.services.http_provider import HTTPProvider, HTTPProviderConfig
 from src.services.mock_provider import MockProvider
 
 
-def _make_provider(provider_name: str) -> BaseProvider:
+def _make_provider(provider_name: str, failure_message: str | None = None) -> BaseProvider:
     """Build a provider instance for shared contract tests."""
     if provider_name == "http":
         return HTTPProvider(
@@ -19,9 +20,10 @@ def _make_provider(provider_name: str) -> BaseProvider:
         )
 
     if provider_name == "mock":
-        return MockProvider()
+        return MockProvider(failure_message=failure_message)
 
     raise AssertionError(f"Unknown provider fixture '{provider_name}'.")
+
 
 @pytest.mark.parametrize("provider_name", ["http", "mock"])
 def test_provider_contract_generate_returns_string_for_valid_prompt(
@@ -47,3 +49,26 @@ def test_provider_contract_generate_returns_string_for_valid_prompt(
 
     assert isinstance(result, str)
     assert result == "Echo: hello"
+
+
+@pytest.mark.parametrize("provider_name", ["http", "mock"])
+def test_provider_contract_generate_raises_provider_error_on_failure(
+    provider_name: str,
+    monkeypatch,
+) -> None:
+    """A provider must raise a provider-domain error on generation failure."""
+    provider = _make_provider(provider_name, failure_message="mock failure")
+
+    if provider_name == "http":
+        from src.services.http_provider import requests
+
+        def fake_post(*args, **kwargs):
+            raise requests.ConnectionError("network down")
+
+        monkeypatch.setattr(
+            "src.services.http_provider.requests.post",
+            fake_post,
+        )
+
+    with pytest.raises(ProviderError):
+        provider.generate("hello")

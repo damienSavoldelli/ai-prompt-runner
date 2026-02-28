@@ -1,12 +1,19 @@
-"""Provider interface for future multi-provider support."""
+"""Provider interface for stable multi-provider support."""
 
 from abc import ABC, abstractmethod
 
 
 class BaseProvider(ABC):
-    """Abstract provider contract."""
+    """Abstract provider contract.
+
+    Implementations must accept a full prompt string and return a response
+    string on success.
+
+    Implementations must raise a provider-domain exception when generation
+    fails.
+    """
 
     @abstractmethod
     def generate(self, prompt: str) -> str:
-        """Generate text from a prompt."""
+        """Generate response text from the provided prompt."""
         raise NotImplementedError
