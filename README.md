@@ -45,6 +45,7 @@ Explore the full project overview, roadmap and methodology here:
 - [CLI Usage](#cli-usage)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
+- [Technical Docs](#technical-docs)
 - [Output Contract](#output-contract)
 - [Output Examples](#output-examples)
 - [Testing](#testing)
@@ -104,7 +105,7 @@ Build package distributions:
 uv run python -m build
 ```
 
-`pip`-based commands remain supported, but `uv` is the recommended workflow for local development in `v0.8.x`.
+`pip`-based commands remain supported, but `uv` is the recommended workflow for local development.
 
 ## Environment Variables
 
@@ -219,19 +220,34 @@ Root/
 │   ├── services/
 │   │   ├── base.py
 │   │   ├── http_provider.py
+│   │   ├── mock_provider.py
 │   │   └── provider_factory.py
 │   └── utils/
 │       └── file_io.py
 │
+├── schemas/
+│   └── response.schema.json
+│
+├── docs/
+│   ├── architecture.md
+│   ├── cli-reference.md
+│   ├── configuration.md
+│   ├── migration.md
+│   ├── output-contract.md
+│   ├── release-checklist.md
+│   └── testing.md
+│
 ├── prompts/
 │
 ├── tests/
+│   ├── fixtures/
 │   ├── unit/
 │   └── e2e/
 │
 ├── .github/workflows/ci.yml
 ├── requirements.txt
 ├── pyproject.toml
+├── uv.lock
 ├── README.md
 └── AGENT.md
 ```
@@ -244,6 +260,18 @@ Root/
 - Provider layer follows an explicit contract enforced by reusable contract tests.
 - `MockProvider` ensures deterministic behavior and decouples validation from network dependencies.
 - `src/utils/`: file persistence helpers.
+
+## Technical Docs
+
+Additional versioned technical documentation is available under [`docs/`](docs/):
+
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/cli-reference.md`](docs/cli-reference.md)
+- [`docs/configuration.md`](docs/configuration.md)
+- [`docs/output-contract.md`](docs/output-contract.md)
+- [`docs/testing.md`](docs/testing.md)
+- [`docs/migration.md`](docs/migration.md)
+- [`docs/release-checklist.md`](docs/release-checklist.md)
 
 ## Output Contract
 
