@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.7.0] - 2026-02-28
+
+### Added
+- Added `schemas/response.schema.json` to formalize the official JSON output contract.
+- Added schema-based contract tests for current response payload validation.
+- Added backward compatibility fixtures and schema compatibility tests for historical
+payloads.
+- Added `docs/output-contract.md` to document the response structure, stability guarantees,
+and compatibility policy.
+
+### Changed
+- Updated `README.md` to reference the formal output contract documentation.
+- Added `jsonschema` support to validate the output contract in automated tests.
+
+### Notes
+- `v0.7.0` freezes the JSON output contract as a stable interface.
+- No CLI interface or provider runtime behavior changed.
+
 ## [v0.6.1] - 2026-02-28
 
 ### Changed
