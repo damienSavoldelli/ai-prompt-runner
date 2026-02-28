@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [v0.6.0] - 2026-02-28
+
+### Added
+- Added `MockProvider` as an official deterministic provider implementation for
+architecture validation and local tests.
+- Added reusable provider contract tests covering shared success and failure behavior.
+
+### Changed
+- Formalized the `BaseProvider` contract documentation for stable multi-provider support.
+
+### Notes
+- `HTTPProvider` remains the only runtime provider exposed by the factory in `v0.6.0`.
+- This release focuses on provider abstraction stability without expanding CLI or runtime
+features.
+
 ## [v0.5.0] - 2026-02-24
 
 ### Added
