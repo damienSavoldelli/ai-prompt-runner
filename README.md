@@ -6,6 +6,26 @@
 
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
 
+## Design Philosophy
+
+ai-prompt-runner is intentionally designed as a stateless execution layer:
+
+**1 input → 1 API call → 1 structured output**
+
+It does not manage conversational state, orchestration, agents, or multi-step workflows.
+
+The project focuses on:
+
+- deterministic execution
+- explicit configuration precedence
+- contract-driven provider abstraction
+- strict failure-path handling
+- reproducible CI validation
+
+Provider implementations must conform to a shared contract validated through reusable contract tests.
+
+An official `MockProvider` is included to guarantee deterministic behavior and network-independent validation.
+
 ## Public Roadmap & Engineering Approach
 
 This project includes a detailed public roadmap and documentation of its structured AI-assisted development approach.
@@ -16,6 +36,7 @@ Explore the full project overview, roadmap and methodology here:
 
 ## Table of Contents
 
+- [Design Philosophy](#design-philosophy)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Environment Variables](#environment-variables)
@@ -181,6 +202,8 @@ Root/
 - `src/cli.py`: argument parsing and process-level I/O only.
 - `src/core/`: business rules and payload validation.
 - `src/services/`: external integrations (AI provider implementations).
+- Provider layer follows an explicit contract enforced by reusable contract tests.
+- `MockProvider` ensures deterministic behavior and decouples validation from network dependencies.
 - `src/utils/`: file persistence helpers.
 
 ## Output Examples
