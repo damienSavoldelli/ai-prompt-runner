@@ -279,6 +279,12 @@ Generate an HTML coverage report:
 python3 -m pytest --cov=src --cov-report=term-missing --cov-report=html -q
 ```
 
+Coverage gate used in CI:
+
+```bash
+python3 -m pytest --cov=src --cov-report=term-missing --cov-fail-under=95
+```
+
 Open `htmlcov/index.html` in a browser to inspect file-by-file coverage.
 
 ## Lint
@@ -295,8 +301,10 @@ GitHub Actions workflow runs on:
 
 Pipeline includes:
 - dependency installation
-- lint
-- tests
+- lint (`ruff check .`)
+- package build verification (`python3 -m build`)
+- build artifact verification
+- tests with coverage enforcement (`--cov-fail-under=95`)
 
 ## Versioning
 

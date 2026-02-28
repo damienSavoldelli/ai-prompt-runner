@@ -1,4 +1,4 @@
-name: CI - Lint and Tests
+name: CI - Lint, Build, and Tests
 
 on:
   push:
@@ -28,5 +28,17 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Run tests
-        run: python3 -m pytest
+      - name: Build package distributions
+        run: python3 -m build
+
+      - name: Verify build artifacts
+        run: |
+          test -f dist/ai_prompt_runner-*.tar.gz
+          test -f dist/ai_prompt_runner-*.whl
+
+      - name: Run tests with coverage gate
+        run: |
+          python3 -m pytest \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-fail-under=95
