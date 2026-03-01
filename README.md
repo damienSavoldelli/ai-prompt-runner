@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/tag/damienSavoldelli/ai-prompt-runner?sort=semver)](https://github.com/damienSavoldelli/ai-prompt-runner/tags)
+[![PyPI](https://img.shields.io/pypi/v/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
@@ -63,6 +64,20 @@ Explore the full project overview, roadmap and methodology here:
 - Virtual environment recommended
 
 ## Installation
+
+Install from PyPI:
+
+```bash
+python3 -m pip install ai-prompt-runner
+```
+
+Verify the installed command:
+
+```bash
+ai-prompt-runner --version
+```
+
+Install from source for development:
 
 ```bash
 python3 -m venv .venv
