@@ -1,9 +1,9 @@
 """Application use case orchestration."""
 
-from src.core.models import PromptRequest, PromptResponse
-from src.services.base import BaseProvider
+from ai_prompt_runner.core.models import PromptRequest, PromptResponse
+from ai_prompt_runner.services.base import BaseProvider
 
-from src.core.validators import validate_response_payload
+from ai_prompt_runner.core.validators import validate_response_payload
 
 
 class PromptRunner:

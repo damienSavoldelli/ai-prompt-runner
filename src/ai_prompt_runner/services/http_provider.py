@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import requests
 
-from src.services.base import BaseProvider
+from ai_prompt_runner.services.base import BaseProvider
 
-from src.core.errors import (
+from ai_prompt_runner.core.errors import (
     AuthenticationError,
     AuthorizationError,
     ProviderError,

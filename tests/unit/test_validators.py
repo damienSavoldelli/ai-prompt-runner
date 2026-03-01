@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.validators import ValidationError, validate_response_payload
+from ai_prompt_runner.core.validators import ValidationError, validate_response_payload
 
 def test_validate_response_payload_accepts_valid_payload() -> None:
     # Arrange: payload matching the expected domain contract.

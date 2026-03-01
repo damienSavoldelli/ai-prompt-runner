@@ -117,7 +117,7 @@ If the `uv` workflow is being used:
 uv run pytest
 uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=95
 uv run ruff check .
-uv run python -m build
+uv run python3 -m build
 ```
 
 ## Quality Philosophy

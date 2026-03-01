@@ -10,11 +10,11 @@ from pathlib import Path
 from importlib.metadata import PackageNotFoundError, version
 from dotenv import load_dotenv
 
-from src.core.errors import PromptRunnerError
-from src.core.models import PromptRequest
-from src.core.runner import PromptRunner
-from src.services.provider_factory import ConfigurationError, create_provider
-from src.utils.file_io import write_json, write_markdown
+from ai_prompt_runner.core.errors import PromptRunnerError
+from ai_prompt_runner.core.models import PromptRequest
+from ai_prompt_runner.core.runner import PromptRunner
+from ai_prompt_runner.services.provider_factory import ConfigurationError, create_provider
+from ai_prompt_runner.utils.file_io import write_json, write_markdown
 
 # Define exit codes
 EXIT_OK = 0

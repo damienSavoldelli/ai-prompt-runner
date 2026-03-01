@@ -3,9 +3,9 @@
 
 import os
 
-from src.core.errors import PromptRunnerError
-from src.services.base import BaseProvider
-from src.services.http_provider import HTTPProvider, HTTPProviderConfig
+from ai_prompt_runner.core.errors import PromptRunnerError
+from ai_prompt_runner.services.base import BaseProvider
+from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
 
 
 class ConfigurationError(PromptRunnerError):

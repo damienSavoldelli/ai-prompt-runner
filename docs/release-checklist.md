@@ -23,7 +23,7 @@ If the `uv` workflow is being used locally, validate that path as well:
 ```bash
 uv run pytest
 uv run ruff check .
-uv run python -m build
+uv run python3 -m build
 ```
 
 ## Version Preparation
@@ -38,7 +38,7 @@ python3 -m pip install -e .
 3. Verify both CLI entrypoints report the expected version:
 
 ```bash
-python3 -m src.cli --version
+python3 -m ai_prompt_runner.cli --version
 ai-prompt-runner --version
 ```
 

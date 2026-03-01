@@ -179,7 +179,7 @@ configuration, testing, migration history, output contract, and release workflow
 ### Changed
 - Updated `README.md` to document both CLI invocation modes consistently:
   - `ai-prompt-runner ...` (console script)
-  - `python3 -m src.cli ...` (module fallback)
+  - `python3 -m ai_prompt_runner.cli ...` (module fallback)
 
 ### Notes
 - Documentation-only patch release.

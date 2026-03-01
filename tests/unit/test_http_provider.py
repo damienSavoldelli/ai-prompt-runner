@@ -1,9 +1,9 @@
 import pytest
 import requests
 
-from src.services.http_provider import HTTPProvider, HTTPProviderConfig
+from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
 
-from src.core.errors import (
+from ai_prompt_runner.core.errors import (
     AuthenticationError,
     AuthorizationError,
     ProviderError,
@@ -44,7 +44,7 @@ def test_generate_retries_then_succeeds(monkeypatch) -> None:
             raise requests.ConnectionError("temporary network error")
         return DummyResponse({"response": "ok"})
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     result = provider.generate("hello")
     assert result == "ok"
@@ -69,7 +69,7 @@ def test_generate_fails_after_retry_exhausted(monkeypatch) -> None:
         calls["count"] += 1
         raise requests.Timeout("timed out")
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     with pytest.raises(ProviderError, match="Provider request failed"):
         provider.generate("hello")
@@ -103,7 +103,7 @@ def test_generate_maps_http_status_to_specific_errors(monkeypatch, status_code: 
         calls["count"] += 1
         return DummyResponse({"error": "x"}, status_code=status_code)
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     with pytest.raises(expected_error):
         provider.generate("hello")
@@ -132,7 +132,7 @@ def test_generate_maps_unknown_4xx_to_generic_provider_error(monkeypatch) -> Non
     def fake_post(*args, **kwargs):
         return FakeResponse()
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     with pytest.raises(ProviderError, match="Provider returned HTTP 418."):
         provider.generate("Hello")
@@ -158,7 +158,7 @@ def test_generate_rejects_invalid_json_response(monkeypatch) -> None:
     def fake_post(*args, **kwargs):
         return FakeResponse()
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     with pytest.raises(ProviderError, match="Provider returned invalid JSON."):
         provider.generate("Hello")
@@ -185,7 +185,7 @@ def test_generate_rejects_non_string_response_field(monkeypatch) -> None:
     def fake_post(*args, **kwargs):
         return FakeResponse()
 
-    monkeypatch.setattr("src.services.http_provider.requests.post", fake_post)
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
 
     with pytest.raises(ProviderError, match="Provider response must contain a string field 'response'."):
           provider.generate("Hello")

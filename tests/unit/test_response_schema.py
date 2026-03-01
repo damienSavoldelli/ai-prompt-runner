@@ -3,9 +3,9 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from src.core.models import PromptRequest
-from src.core.runner import PromptRunner
-from src.services.base import BaseProvider
+from ai_prompt_runner.core.models import PromptRequest
+from ai_prompt_runner.core.runner import PromptRunner
+from ai_prompt_runner.services.base import BaseProvider
 
 
 class FakeProvider(BaseProvider):

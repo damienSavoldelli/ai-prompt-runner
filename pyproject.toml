@@ -23,12 +23,12 @@ dev = [
 ]
 
 [project.scripts]
-ai-prompt-runner = "src.cli:main"
+ai-prompt-runner = "ai_prompt_runner.cli:main"
 
 [tool.setuptools.packages.find]
-  where = ["."]
-  include = ["src*"]
-  namespaces = true
+  where = ["src"]
+  include = ["ai_prompt_runner*"]
+  namespaces = false
 
 [tool.pytest.ini_options]
 addopts = "-vv -s"

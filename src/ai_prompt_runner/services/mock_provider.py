@@ -1,7 +1,7 @@
 """Mock provider implementation for contract validation and local tests."""
 
-from src.core.errors import ProviderError
-from src.services.base import BaseProvider
+from ai_prompt_runner.core.errors import ProviderError
+from ai_prompt_runner.services.base import BaseProvider
 
 
 class MockProvider(BaseProvider):
