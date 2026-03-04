@@ -1,9 +1,9 @@
 # ai-prompt-runner
 
 [![CI](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/v/tag/damienSavoldelli/ai-prompt-runner?sort=semver)](https://github.com/damienSavoldelli/ai-prompt-runner/tags)
-[![PyPI](https://img.shields.io/pypi/v/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![PyPI version](https://badge.fury.io/py/ai-prompt-runner.svg)](https://pypi.org/project/ai-prompt-runner/)
+[![Python](https://img.shields.io/pypi/pyversions/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
+[![License](https://img.shields.io/pypi/l/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
 
@@ -65,10 +65,10 @@ Explore the full project overview, roadmap and methodology here:
 
 ## Installation
 
-Install from PyPI:
+Recommended for CLI usage with `pipx`:
 
 ```bash
-python3 -m pip install ai-prompt-runner
+pipx install ai-prompt-runner
 ```
 
 Verify the installed command:
@@ -77,13 +77,25 @@ Verify the installed command:
 ai-prompt-runner --version
 ```
 
+Install from PyPI with `pip` (fallback):
+
+```bash
+python3 -m pip install ai-prompt-runner
+```
+
+If the installed command is not found, your Python script directory may not be on `PATH`.
+In that case, prefer `pipx` for CLI usage or run the module directly:
+
+```bash
+python3 -m ai_prompt_runner.cli --version
+```
+
 Install from source for development:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements.txt
-python3 -m pip install -e .
+python3 -m pip install -e ".[dev]"
 ```
 
 ## uv Workflow
