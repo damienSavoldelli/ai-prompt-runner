@@ -7,7 +7,7 @@ from typing import Callable
 from ai_prompt_runner.core.errors import PromptRunnerError
 from ai_prompt_runner.services.base import BaseProvider
 from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
-
+from ai_prompt_runner.services.openai_compatible_provider import OpenAICompatibleProvider, OpenAICompatibleProviderConfig
 
 class ConfigurationError(PromptRunnerError):
     """Raised when provider runtime configuration is invalid."""
@@ -32,6 +32,10 @@ class ProviderSpec:
     provider_id: str
     # Callable that builds a concrete provider instance from normalized config.
     builder: Callable[[ProviderRuntimeConfig], BaseProvider]
+    # Optional provider defaults used during config resolution.
+    # They can also be reused in CLI/help or documentation.
+    default_endpoint: str
+    default_model: str
 
 
 def _build_http_provider(config: ProviderRuntimeConfig) -> BaseProvider:
@@ -46,15 +50,84 @@ def _build_http_provider(config: ProviderRuntimeConfig) -> BaseProvider:
         )
     )
 
+def _build_openai_compatible_provider(config: ProviderRuntimeConfig) -> BaseProvider:
+    """Build an OpenAI-compatible provider from normalized runtime configuration."""
+    return OpenAICompatibleProvider(
+        OpenAICompatibleProviderConfig(
+            endpoint=config.endpoint,
+            api_key=config.api_key,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+            max_retries=config.max_retries,
+        )
+    )
 
-# Central provider registry.
-# In v1.1 step 1 we keep only the current behavior: "http" provider support.
+# Central provider registry with protocol-level provider classes and brand aliases.
 PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
-    "http": ProviderSpec(provider_id="http", builder=_build_http_provider),
+    "http": ProviderSpec(
+        provider_id="http",
+        builder=_build_http_provider,
+        default_endpoint="",
+        default_model="default",
+    ),
+    "openai_compatible": ProviderSpec(
+        provider_id="openai_compatible",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.openai.com/v1",
+        default_model="gpt-4o-mini",
+    ),
+    "openai": ProviderSpec(
+        provider_id="openai",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.openai.com/v1",
+        default_model="gpt-4o-mini",
+    ),
+    "openrouter": ProviderSpec(
+        provider_id="openrouter",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://openrouter.ai/api/v1",
+        default_model="openrouter/auto",
+    ),
+    "groq": ProviderSpec(
+        provider_id="groq",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.groq.com/openai/v1",
+        default_model="llama-3.1-70b-versatile",
+    ),
+    "together": ProviderSpec(
+        provider_id="together",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.together.xyz/v1",
+        default_model="mistralai/Mixtral-8x7B-Instruct-v0.1",
+    ),
+    "fireworks": ProviderSpec(
+        provider_id="fireworks",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.fireworks.ai/inference/v1",
+        default_model="accounts/fireworks/models/llama-v3p1-70b-instruct",
+    ),
+    "perplexity": ProviderSpec(
+        provider_id="perplexity",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.perplexity.ai",
+        default_model="llama-3.1-sonar-small-128k-online",
+    ),
+    "inception": ProviderSpec(
+        provider_id="inception",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.inceptionlabs.ai/v1",
+        default_model="inception/mercury-2",
+    ),
+    "lmstudio": ProviderSpec(
+        provider_id="lmstudio",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="http://localhost:1234/v1",
+        default_model="local-model",
+    ),
 }
 
-
 def _resolve_runtime_config(
+    provider_spec: ProviderSpec,
     api_endpoint: str | None,
     api_key: str | None,
     api_model: str | None,
@@ -63,23 +136,39 @@ def _resolve_runtime_config(
 ) -> ProviderRuntimeConfig:
     """
     Resolve runtime config with deterministic precedence:
-    CLI args > environment variables > internal defaults.
+    CLI args > environment variables > provider defaults.
     """
-    endpoint = (api_endpoint or os.getenv("AI_API_ENDPOINT", "")).strip()
-    key = (api_key or os.getenv("AI_API_KEY", "")).strip()
-    model = (api_model or os.getenv("AI_API_MODEL", "default")).strip() or "default"
 
-    # Keep old timeout behavior exactly as before.
+    # Endpoint can come from CLI, env, or provider-specific default in registry.
+    endpoint = (
+        api_endpoint
+        or os.getenv("AI_API_ENDPOINT")
+        or provider_spec.default_endpoint
+        or ""
+    ).strip()
+
+    # API key remains required for all current network providers.
+    key = (api_key or os.getenv("AI_API_KEY", "")).strip()
+
+    # Model can come from CLI, env, or provider-specific default in registry.
+    model = (
+        api_model
+        or os.getenv("AI_API_MODEL")
+        or provider_spec.default_model
+        or "default"
+    ).strip() or "default"
+
+    # Keep existing timeout behavior unchanged.
     resolved_timeout = timeout_seconds if timeout_seconds is not None else 30
     if resolved_timeout <= 0:
         raise ConfigurationError("timeout_seconds must be greater than 0.")
 
-    # Keep old retries behavior exactly as before.
+    # Keep existing retry behavior unchanged.
     resolved_max_retries = max_retries if max_retries is not None else 0
     if resolved_max_retries < 0:
         raise ConfigurationError("max_retries must be greater than or equal to 0.")
 
-    # Required fields for authenticated HTTP calls.
+    # Fail fast on missing required runtime credentials/config.
     if not endpoint:
         raise ConfigurationError("AI_API_ENDPOINT is required.")
     if not key:
@@ -105,16 +194,17 @@ def create_provider(
     """
     Create a provider from a registry entry.
 
-    This keeps factory logic thin:
+    Factory remains thin:
     - lookup provider by key
     - resolve normalized config once
-    - delegate construction to the provider spec
+    - delegate provider construction to the spec builder
     """
     provider_spec = PROVIDER_REGISTRY.get(provider_name)
     if provider_spec is None:
         raise ConfigurationError(f"Unsupported provider '{provider_name}'.")
 
     runtime_config = _resolve_runtime_config(
+        provider_spec=provider_spec,
         api_endpoint=api_endpoint,
         api_key=api_key,
         api_model=api_model,
