@@ -6,7 +6,7 @@ from ai_prompt_runner.services.provider_factory import ConfigurationError, creat
 
 
 def test_create_provider_returns_http_provider_with_cli_values() -> None:
-    # Arrange + Act: build provider from explicit CLI-like values.
+    """Create an HTTP provider from explicit CLI values."""
     provider = create_provider(
         provider_name="http",
         api_endpoint="http://localhost:11434/api/generate",
@@ -16,7 +16,6 @@ def test_create_provider_returns_http_provider_with_cli_values() -> None:
         max_retries=3,
     )
 
-    # Assert: returned provider type and normalized config are correct.
     assert isinstance(provider, HTTPProvider)
     assert provider.config.endpoint == "http://localhost:11434/api/generate"
     assert provider.config.api_key == "dummy"
@@ -26,14 +25,15 @@ def test_create_provider_returns_http_provider_with_cli_values() -> None:
 
 
 def test_create_provider_rejects_unknown_provider() -> None:
-    # Unsupported provider names must fail fast with a clear error.
+    """Reject unknown provider names with a configuration error."""
     with pytest.raises(ConfigurationError, match="Unsupported provider"):
         create_provider(provider_name="unknown")
 
 
 def test_create_provider_requires_endpoint(monkeypatch) -> None:
-    # Endpoint is mandatory for HTTP provider creation.    
+    """Require endpoint resolution for HTTP provider creation."""
     monkeypatch.delenv("AI_API_ENDPOINT", raising=False) # Remove env fallback to validate explicit missing endpoint behavior.
+    
     with pytest.raises(ConfigurationError, match="AI_API_ENDPOINT is required"):
         create_provider(
             provider_name="http",
@@ -44,8 +44,10 @@ def test_create_provider_requires_endpoint(monkeypatch) -> None:
 
 
 def test_create_provider_requires_api_key(monkeypatch) -> None:
-    # API key is mandatory for authenticated provider calls.   
+    """Require API key resolution for authenticated provider calls."""
+    
     monkeypatch.delenv("AI_API_KEY", raising=False) # Remove env fallback to validate explicit missing API key behavior.
+    
     with pytest.raises(ConfigurationError, match="AI_API_KEY is required"):
         create_provider(
             provider_name="http",
@@ -53,10 +55,11 @@ def test_create_provider_requires_api_key(monkeypatch) -> None:
             api_key="",
             api_model="llama3.2",
         )
-        
+
+
 @pytest.mark.parametrize("bad_timeout", [0, -5])
 def test_create_provider_rejects_invalid_timeout(bad_timeout: int) -> None:
-    # Timeout must be a positive integer if provided.
+    """Reject non-positive timeout values."""
     with pytest.raises(ConfigurationError, match="timeout_seconds must be greater than 0"):
         create_provider(
             provider_name="http",
@@ -66,7 +69,9 @@ def test_create_provider_rejects_invalid_timeout(bad_timeout: int) -> None:
             timeout_seconds=bad_timeout,
         )
 
+
 def test_create_provider_rejects_negative_retries() -> None:
+    """Reject negative retry counts."""
     with pytest.raises(ConfigurationError, match="max_retries must be greater than or equal to 0"):
         create_provider(
             provider_name="http",
