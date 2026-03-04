@@ -11,7 +11,7 @@ The agent MUST follow these rules.
 # Core Commands
 
 ## Run CLI
-python -m src.cli --prompt "Your text here"
+python3 -m ai_prompt_runner.cli--prompt "Your text here"
 
 ## Run Tests
 pytest
@@ -234,7 +234,7 @@ CI pipeline definition.
 
 Always use:
 
-- python -m src.cli
+- python3 -m ai_prompt_runner.cli
 - pytest before committing
 - black .
 - ruff check .
@@ -279,7 +279,7 @@ When debugging:
 
 Always prefer absolute imports:
 
-from src.core.prompt_runner import run_prompt
+from ai_prompt_runner.core.runner import PromptRunner
 
 Never use relative imports across layers.
 

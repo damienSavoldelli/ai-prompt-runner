@@ -1,6 +1,6 @@
 """Validation helpers for normalized response payload."""
 
-from src.core.errors import PromptRunnerError
+from ai_prompt_runner.core.errors import PromptRunnerError
 
 
 class ValidationError(PromptRunnerError):

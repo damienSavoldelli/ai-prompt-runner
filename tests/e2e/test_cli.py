@@ -4,7 +4,7 @@ import argparse
 
 from pathlib import Path
 
-from src import cli
+from ai_prompt_runner import cli
 
 
 class FakeProvider:

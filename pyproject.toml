@@ -4,13 +4,45 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-prompt-runner"
-version = "1.0.0"
+version = "1.0.1"
 description = "CLI tool to send prompts to an AI API and save JSON/Markdown outputs."
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
+authors = [
+    { name = "Damien Savoldelli" },
+]
+keywords = [
+    "ai",
+    "cli",
+    "llm",
+    "prompt",
+    "automation",
+    "json-schema",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
 dependencies = [
     "requests>=2.32.5",
     "python-dotenv>=1.2.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/damienSavoldelli/ai-prompt-runner"
+Documentation = "https://nutritious-ringer-9ec.notion.site/AI-Prompt-Runner-30ca11bd93a28009bde3fb280d7179fd?pvs=74"
+Repository = "https://github.com/damienSavoldelli/ai-prompt-runner"
+Issues = "https://github.com/damienSavoldelli/ai-prompt-runner/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -20,15 +52,16 @@ dev = [
     "pytest-cov==7.0.0",
     "pytest-sugar==1.1.1",
     "ruff==0.15.1",
+    "twine==6.1.0",
 ]
 
 [project.scripts]
-ai-prompt-runner = "src.cli:main"
+ai-prompt-runner = "ai_prompt_runner.cli:main"
 
 [tool.setuptools.packages.find]
-  where = ["."]
-  include = ["src*"]
-  namespaces = true
+  where = ["src"]
+  include = ["ai_prompt_runner*"]
+  namespaces = false
 
 [tool.pytest.ini_options]
 addopts = "-vv -s"

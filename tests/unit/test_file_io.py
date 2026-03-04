@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.utils.file_io import write_json, write_markdown
+from ai_prompt_runner.utils.file_io import write_json, write_markdown
 
 
 def test_write_json_creates_file_with_expected_content(tmp_path: Path) -> None:

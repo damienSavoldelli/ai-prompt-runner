@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.0.1] - 2026-03-01
+
+### Added
+- Added public PyPI packaging metadata, including README-based project description, project
+URLs, classifiers, keywords, and license declaration.
+- Added `twine` to the development workflow to validate publishable distribution artifacts.
+- Added PyPI installation instructions and badge to the README.
+
+### Changed
+- Aligned the public Python package namespace with `ai_prompt_runner` for cleaner
+distribution and import behavior.
+- Updated the console entrypoint and module execution path to use `ai_prompt_runner.cli`.
+- Improved distribution readiness for public package publication without changing runtime
+behavior or stable contracts.
+
+### Notes
+- `v1.0.1` activates public distribution readiness for PyPI.
+- No CLI interface, provider contract, or output contract changes were introduced.
+
 ## [v1.0.0] - 2026-02-28
 
 ### Added
@@ -179,7 +198,7 @@ configuration, testing, migration history, output contract, and release workflow
 ### Changed
 - Updated `README.md` to document both CLI invocation modes consistently:
   - `ai-prompt-runner ...` (console script)
-  - `python3 -m src.cli ...` (module fallback)
+  - `python3 -m ai_prompt_runner.cli ...` (module fallback)
 
 ### Notes
 - Documentation-only patch release.

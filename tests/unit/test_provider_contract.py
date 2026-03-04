@@ -1,9 +1,9 @@
 import pytest
 
-from src.core.errors import ProviderError
-from src.services.base import BaseProvider
-from src.services.http_provider import HTTPProvider, HTTPProviderConfig
-from src.services.mock_provider import MockProvider
+from ai_prompt_runner.core.errors import ProviderError
+from ai_prompt_runner.services.base import BaseProvider
+from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
+from ai_prompt_runner.services.mock_provider import MockProvider
 
 
 def _make_provider(provider_name: str, failure_message: str | None = None) -> BaseProvider:
@@ -41,7 +41,7 @@ def test_provider_contract_generate_returns_string_for_valid_prompt(
                 return {"response": "Echo: hello"}
 
         monkeypatch.setattr(
-            "src.services.http_provider.requests.post",
+            "ai_prompt_runner.services.http_provider.requests.post",
             lambda *args, **kwargs: FakeResponse(),
         )
 
@@ -60,13 +60,13 @@ def test_provider_contract_generate_raises_provider_error_on_failure(
     provider = _make_provider(provider_name, failure_message="mock failure")
 
     if provider_name == "http":
-        from src.services.http_provider import requests
+        from ai_prompt_runner.services.http_provider import requests
 
         def fake_post(*args, **kwargs):
             raise requests.ConnectionError("network down")
 
         monkeypatch.setattr(
-            "src.services.http_provider.requests.post",
+            "ai_prompt_runner.services.http_provider.requests.post",
             fake_post,
         )
 

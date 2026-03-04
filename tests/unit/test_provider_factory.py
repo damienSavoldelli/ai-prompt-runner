@@ -1,7 +1,7 @@
 import pytest
 
-from src.services.http_provider import HTTPProvider
-from src.services.provider_factory import ConfigurationError, create_provider
+from ai_prompt_runner.services.http_provider import HTTPProvider
+from ai_prompt_runner.services.provider_factory import ConfigurationError, create_provider
 
 
 def test_create_provider_returns_http_provider_with_cli_values() -> None:
