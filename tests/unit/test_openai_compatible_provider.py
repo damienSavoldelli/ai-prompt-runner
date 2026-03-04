@@ -245,3 +245,48 @@ def test_generate_rejects_non_string_message_content(monkeypatch) -> None:
         match="Provider response message must contain string 'content'.",
     ):
         provider.generate("hello")
+
+
+def test_generate_rejects_non_object_choice(monkeypatch) -> None:
+    """Each choice entry must be an object."""
+    provider = _make_provider()
+
+    payload = {"choices": [123]}
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(payload, status_code=200),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider response choice must be an object.",
+    ):
+        provider.generate("hello")
+
+
+def test_generate_rejects_missing_message_object(monkeypatch) -> None:
+    """Each choice must include a message object."""
+    provider = _make_provider()
+
+    payload = {"choices": [{}]}
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(payload, status_code=200),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider response choice must contain a 'message' object.",
+    ):
+        provider.generate("hello")
+
+
+def test_generate_defensive_fallback_on_invalid_retry_config() -> None:
+    """
+    Defensive path coverage: if a caller constructs an invalid config
+    (negative max_retries), the loop is skipped and fallback error is raised.
+    """
+    provider = _make_provider(max_retries=-1)
+
+    with pytest.raises(ProviderError, match="Provider request failed unexpectedly."):
+        provider.generate("hello")
