@@ -4,6 +4,7 @@ from ai_prompt_runner.utils.file_io import write_json, write_markdown
 
 
 def test_write_json_creates_file_with_expected_content(tmp_path: Path) -> None:
+    """Write JSON output and assert the expected payload fields are persisted."""
     # Representative normalized payload produced by the runner.
     payload = {
         "prompt": "Hello",
@@ -26,6 +27,7 @@ def test_write_json_creates_file_with_expected_content(tmp_path: Path) -> None:
 
 
 def test_write_markdown_creates_file_with_expected_sections(tmp_path: Path) -> None:
+    """Write Markdown output and assert the expected report sections exist."""
     # Same payload, written to a human-readable markdown report.
     payload = {
         "prompt": "Hello",
