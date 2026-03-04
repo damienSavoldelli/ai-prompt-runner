@@ -1,7 +1,7 @@
 # ai-prompt-runner
 
 [![CI](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/damienSavoldelli/ai-prompt-runner/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
+[![PyPI version](https://badge.fury.io/py/ai-prompt-runner.svg)](https://pypi.org/project/ai-prompt-runner/)
 [![Python](https://img.shields.io/pypi/pyversions/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 [![License](https://img.shields.io/pypi/l/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 
