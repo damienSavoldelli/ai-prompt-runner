@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.1.0] - 2026-03-06
+
+### Added
+
+- Added protocol-level provider implementations:
+    - AnthropicProvider (Anthropic Messages API)
+    - GoogleProvider (Gemini generateContent API)
+- Added provider registry aliases for:
+    - x
+    - xai
+    - ollama
+- Added comprehensive provider protocol test suites:
+    - tests/unit/test_anthropic_provider.py
+    - tests/unit/test_google_provider.py
+- Extended provider factory and contract tests for new providers and aliases.
+
+### Changed
+
+- Extended provider registry defaults for protocol routing and alias resolution.
+- Maintained thin factory design (create_provider remains registry-driven with no provider-
+  specific branching).
+- Updated documentation to reflect v1.1 provider support:
+    - README provider matrix and usage examples
+    - CLI reference provider coverage
+    - architecture protocol mapping
+    - configuration examples for anthropic, google, and ollama
+- Updated README repository-file links to absolute GitHub URLs for PyPI-safe rendering.
+
+### Notes
+
+- v1.1.0 expands provider coverage while preserving the stateless execution model.
+- No output JSON schema/contract changes.
+- No orchestration, memory, or multi-step workflow behavior introduced.
+
 ## [v1.0.1] - 2026-03-01
 
 ### Added
