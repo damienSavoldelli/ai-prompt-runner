@@ -164,6 +164,12 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
         default_endpoint="http://localhost:1234/v1",
         default_model="local-model",
     ),
+    "ollama": ProviderSpec(
+        provider_id="ollama",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="http://localhost:11434/v1",
+        default_model="llama3.2",
+    ),
     "anthropic": ProviderSpec(
         provider_id="anthropic",
         builder=_build_anthropic_provider,
