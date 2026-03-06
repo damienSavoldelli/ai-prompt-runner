@@ -29,6 +29,8 @@ Configuration is resolved in this order:
 
 This precedence is deterministic and is applied before provider construction.
 
+Provider-specific endpoint/model defaults are resolved in the factory after CLI/env/TOML values.
+
 ## Environment Variables
 
 Supported environment variables:
@@ -66,6 +68,33 @@ Supported TOML keys:
 - `out_json`
 - `out_md`
 
+Example protocol provider configurations:
+
+```toml
+[ai_prompt_runner]
+provider = "anthropic"
+api_model = "claude-3-7-sonnet-latest"
+timeout = 30
+retries = 0
+```
+
+```toml
+[ai_prompt_runner]
+provider = "google"
+api_model = "gemini-2.5-flash"
+timeout = 30
+retries = 0
+```
+
+```toml
+[ai_prompt_runner]
+provider = "ollama"
+api_endpoint = "http://localhost:11434/v1"
+api_model = "gemma3:latest"
+timeout = 30
+retries = 0
+```
+
 Unsupported TOML key:
 
 - `api_key`
@@ -95,6 +124,8 @@ Current defaults include:
 - `retries = 0`
 - `out_json = "outputs/response.json"`
 - `out_md = "outputs/response.md"`
+
+Selected providers may also supply endpoint/model defaults through the registry when these values are omitted.
 
 ## Validation Rules
 

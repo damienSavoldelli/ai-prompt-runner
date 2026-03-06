@@ -44,6 +44,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Environment Variables](#environment-variables)
 - [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
+- [Supported Providers](#supported-providers)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
 - [Technical Docs](#technical-docs)
@@ -163,7 +164,7 @@ out_json = "outputs/response.json"
 out_md = "outputs/response.md"
 ```
 
-You can start from [`config.example.toml`](config.example.toml) and copy it to a local `config.toml` (do not store secrets in this file)
+You can start from [`config.example.toml`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/config.example.toml) and copy it to a local `config.toml` (do not store secrets in this file)
 
 Configuration precedence is:
 
@@ -202,6 +203,31 @@ python3 -m ai_prompt_runner.cli --config config.toml --prompt "Hello world"
 
 CLI flags and environment variables override values from the config file.
 
+## Supported Providers
+
+The provider factory is protocol-first and registry-driven.
+
+OpenAI-compatible protocol providers (same runtime class, different defaults/aliases):
+
+- `openai_compatible`
+- `openai`
+- `openrouter`
+- `groq`
+- `together`
+- `fireworks`
+- `perplexity`
+- `inception`
+- `x`
+- `xai`
+- `lmstudio`
+- `ollama`
+
+Other protocol providers:
+
+- `anthropic`
+- `google`
+- `http` (legacy generic JSON-over-HTTP provider)
+
 Run with explicit API values:
 
 ```bash
@@ -216,6 +242,51 @@ python3 -m ai_prompt_runner.cli \
   --api-endpoint "http://localhost:11434/api/generate" \
   --api-key "dummy" \
   --api-model "llama3.2"
+```
+
+Run with Anthropic defaults:
+
+```bash
+ai-prompt-runner \
+  --provider anthropic \
+  --api-key "$AI_API_KEY" \
+  --prompt "Explain retry logic"
+```
+
+Run with OpenAI defaults:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --prompt "Explain configuration precedence"
+```
+
+Run with Google defaults:
+
+```bash
+ai-prompt-runner \
+  --provider google \
+  --api-key "$AI_API_KEY" \
+  --prompt "Summarize this architecture"
+```
+
+Run with xAI defaults:
+
+```bash
+ai-prompt-runner \
+  --provider xai \
+  --api-key "$AI_API_KEY" \
+  --prompt "Generate a concise changelog entry"
+```
+
+Run locally with Ollama defaults:
+
+```bash
+ai-prompt-runner \
+  --provider ollama \
+  --api-key "dummy" \
+  --prompt "Hello from local Ollama"
 ```
 
 Custom output paths:
@@ -238,19 +309,23 @@ python3 -m ai_prompt_runner.cli \
 Root/
 │
 ├── src/
-│   ├── cli.py
-│   ├── core/
-│   │   ├── errors.py
-│   │   ├── models.py
-│   │   ├── runner.py
-│   │   └── validators.py
-│   ├── services/
-│   │   ├── base.py
-│   │   ├── http_provider.py
-│   │   ├── mock_provider.py
-│   │   └── provider_factory.py
-│   └── utils/
-│       └── file_io.py
+│   └── ai_prompt_runner/
+│       ├── cli.py
+│       ├── core/
+│       │   ├── errors.py
+│       │   ├── models.py
+│       │   ├── runner.py
+│       │   └── validators.py
+│       ├── services/
+│       │   ├── anthropic_provider.py
+│       │   ├── base.py
+│       │   ├── google_provider.py
+│       │   ├── http_provider.py
+│       │   ├── mock_provider.py
+│       │   ├── openai_compatible_provider.py
+│       │   └── provider_factory.py
+│       └── utils/
+│           └── file_io.py
 │
 ├── schemas/
 │   └── response.schema.json
@@ -281,30 +356,30 @@ Root/
 
 ## Architecture Principles
 
-- `src/cli.py`: argument parsing and process-level I/O only.
-- `src/core/`: business rules and payload validation.
-- `src/services/`: external integrations (AI provider implementations).
+- `src/ai_prompt_runner/cli.py`: argument parsing and process-level I/O only.
+- `src/ai_prompt_runner/core/`: business rules and payload validation.
+- `src/ai_prompt_runner/services/`: external integrations (AI provider implementations).
 - Provider layer follows an explicit contract enforced by reusable contract tests.
 - `MockProvider` ensures deterministic behavior and decouples validation from network dependencies.
-- `src/utils/`: file persistence helpers.
+- `src/ai_prompt_runner/utils/`: file persistence helpers.
 
 ## Technical Docs
 
-Additional versioned technical documentation is available under [`docs/`](docs/):
+Additional versioned technical documentation is available under [`docs/`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs):
 
-- [`docs/architecture.md`](docs/architecture.md)
-- [`docs/cli-reference.md`](docs/cli-reference.md)
-- [`docs/configuration.md`](docs/configuration.md)
-- [`docs/output-contract.md`](docs/output-contract.md)
-- [`docs/testing.md`](docs/testing.md)
-- [`docs/migration.md`](docs/migration.md)
-- [`docs/release-checklist.md`](docs/release-checklist.md)
+- [`docs/architecture.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/architecture.md)
+- [`docs/cli-reference.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/cli-reference.md)
+- [`docs/configuration.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/configuration.md)
+- [`docs/output-contract.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/output-contract.md)
+- [`docs/testing.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/testing.md)
+- [`docs/migration.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/migration.md)
+- [`docs/release-checklist.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/release-checklist.md)
 
 ## Output Contract
 
-The normalized JSON response is treated as a stable contract and is formally defined by [`schemas/response.schema.json`](schemas/response.schema.json).
+The normalized JSON response is treated as a stable contract and is formally defined by [`schemas/response.schema.json`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/schemas/response.schema.json).
 
-Detailed contract documentation is available in [`docs/output-contract.md`](docs/output-contract.md).
+Detailed contract documentation is available in [`docs/output-contract.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/output-contract.md).
 
 ## Output Examples
 
@@ -437,15 +512,15 @@ Release history and notes should be published through GitHub Releases.
 
 ## Release Notes
 
-See `CHANGELOG.md` for version history.
+See [`CHANGELOG.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/CHANGELOG.md) for version history.
 
 ## Release Checklist
 
-See [`docs/release-checklist.md`](docs/release-checklist.md) for the standardized release preparation flow.
+See [`docs/release-checklist.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/release-checklist.md) for the standardized release preparation flow.
 
 ## Troubleshooting
 
-- `ModuleNotFoundError: No module named 'src'`:
+- `ModuleNotFoundError: No module named 'ai_prompt_runner'`:
   run commands from repository root and use `python3 -m ...` syntax.
 - `Connection refused` on API call:
   verify `AI_API_ENDPOINT`, provider availability, and local network access.
