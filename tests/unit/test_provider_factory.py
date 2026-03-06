@@ -218,3 +218,19 @@ def test_create_provider_supports_x_aliases_with_registry_defaults(
     assert provider.config.endpoint == "https://api.x.ai/v1"
     assert provider.config.model == "grok-3-latest"
     assert provider.config.api_key == "dummy"
+
+
+def test_create_provider_supports_ollama_alias_with_registry_defaults(monkeypatch) -> None:
+    """ollama alias should resolve to OpenAI-compatible provider local defaults."""
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False)
+    monkeypatch.delenv("AI_API_MODEL", raising=False)
+
+    provider = create_provider(
+        provider_name="ollama",
+        api_key="dummy",
+    )
+
+    assert isinstance(provider, OpenAICompatibleProvider)
+    assert provider.config.endpoint == "http://localhost:11434/v1"
+    assert provider.config.model == "llama3.2"
+    assert provider.config.api_key == "dummy"
