@@ -1,7 +1,9 @@
 import pytest
 
 from ai_prompt_runner.core.errors import ProviderError
+from ai_prompt_runner.services.anthropic_provider import AnthropicProvider, AnthropicProviderConfig
 from ai_prompt_runner.services.base import BaseProvider
+from ai_prompt_runner.services.google_provider import GoogleProvider, GoogleProviderConfig
 from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
 from ai_prompt_runner.services.mock_provider import MockProvider
 from ai_prompt_runner.services.openai_compatible_provider import (
@@ -37,10 +39,36 @@ def _make_provider(provider_name: str, failure_message: str | None = None) -> Ba
             )
         )
 
+    if provider_name == "anthropic":
+        return AnthropicProvider(
+            AnthropicProviderConfig(
+                endpoint="https://api.anthropic.com/v1/messages",
+                api_key="dummy",
+                model="claude-3-7-sonnet-latest",
+                timeout_seconds=5,
+                max_retries=0,
+                max_tokens=1024,
+            )
+        )
+
+    if provider_name == "google":
+        return GoogleProvider(
+            GoogleProviderConfig(
+                endpoint="https://generativelanguage.googleapis.com/v1beta/models",
+                api_key="dummy",
+                model="gemini-2.5-flash",
+                timeout_seconds=5,
+                max_retries=0,
+            )
+        )
+
     raise AssertionError(f"Unknown provider fixture '{provider_name}'.")
 
 
-@pytest.mark.parametrize("provider_name", ["http", "openai_compatible", "mock"])
+@pytest.mark.parametrize(
+    "provider_name",
+    ["http", "openai_compatible", "anthropic", "google", "mock"],
+)
 def test_provider_contract_generate_returns_string_for_valid_prompt(
     provider_name: str,
     monkeypatch,
@@ -72,13 +100,40 @@ def test_provider_contract_generate_returns_string_for_valid_prompt(
             lambda *args, **kwargs: FakeResponse(),
         )
 
+    if provider_name == "anthropic":
+        class FakeResponse:
+            status_code = 200
+
+            def json(self) -> dict:
+                return {"content": [{"type": "text", "text": "Echo: hello"}]}
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.anthropic_provider.requests.post",
+            lambda *args, **kwargs: FakeResponse(),
+        )
+
+    if provider_name == "google":
+        class FakeResponse:
+            status_code = 200
+
+            def json(self) -> dict:
+                return {"candidates": [{"content": {"parts": [{"text": "Echo: hello"}]}}]}
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.google_provider.requests.post",
+            lambda *args, **kwargs: FakeResponse(),
+        )
+
     result = provider.generate("hello")
 
     assert isinstance(result, str)
     assert result == "Echo: hello"
 
 
-@pytest.mark.parametrize("provider_name", ["http", "openai_compatible", "mock"])
+@pytest.mark.parametrize(
+    "provider_name",
+    ["http", "openai_compatible", "anthropic", "google", "mock"],
+)
 def test_provider_contract_generate_raises_provider_error_on_failure(
     provider_name: str,
     monkeypatch,
@@ -105,6 +160,28 @@ def test_provider_contract_generate_raises_provider_error_on_failure(
 
         monkeypatch.setattr(
             "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+            fake_post,
+        )
+
+    if provider_name == "anthropic":
+        from ai_prompt_runner.services.anthropic_provider import requests
+
+        def fake_post(*args, **kwargs):
+            raise requests.ConnectionError("network down")
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.anthropic_provider.requests.post",
+            fake_post,
+        )
+
+    if provider_name == "google":
+        from ai_prompt_runner.services.google_provider import requests
+
+        def fake_post(*args, **kwargs):
+            raise requests.ConnectionError("network down")
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.google_provider.requests.post",
             fake_post,
         )
 

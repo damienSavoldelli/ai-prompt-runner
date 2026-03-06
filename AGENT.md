@@ -297,6 +297,42 @@ Never use relative imports across layers.
 
 ---
 
+# Pull Request Standard
+
+For every pull request, use this exact section order:
+
+1. `## Scope`
+2. `## Why`
+3. `## Validation`
+4. `## Out of Scope`
+
+## Content Rules
+
+- `Scope`: describe concrete code changes (files/components/behaviors).
+- `Why`: explain architectural or product rationale (not implementation details).
+- `Validation`: list executed commands and their result status.
+- `Out of Scope`: explicitly state what was intentionally not changed.
+
+## Validation Format
+
+Use command bullets, for example:
+
+- `ruff check .`
+- `python3 -m pytest`
+- `python3 -m pytest --cov=src --cov-report=term-missing --cov-fail-under=95 -q`
+
+Then add a short result line:
+
+- `All checks passed locally.`
+
+## Discipline
+
+- Keep PR text factual and concise.
+- Do not mix future roadmap work into current PR scope.
+- If docs are not updated in the PR, state it explicitly in `Out of Scope`.
+
+---
+
 # Versioning
 
 Use semantic versioning:

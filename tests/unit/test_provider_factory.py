@@ -1,5 +1,7 @@
 import pytest
 
+from ai_prompt_runner.services.anthropic_provider import AnthropicProvider
+from ai_prompt_runner.services.google_provider import GoogleProvider
 from ai_prompt_runner.services.http_provider import HTTPProvider
 from ai_prompt_runner.services.openai_compatible_provider import OpenAICompatibleProvider
 from ai_prompt_runner.services.provider_factory import ConfigurationError, create_provider
@@ -164,3 +166,55 @@ def test_create_provider_allows_cli_overrides_on_openai_compatible_alias() -> No
     assert provider.config.model == "override-model"
     assert provider.config.timeout_seconds == 7
     assert provider.config.max_retries == 2
+
+
+def test_create_provider_supports_anthropic_with_registry_defaults(monkeypatch) -> None:
+    """Anthropic provider should resolve to the Anthropic protocol implementation."""
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False)
+    monkeypatch.delenv("AI_API_MODEL", raising=False)
+
+    provider = create_provider(
+        provider_name="anthropic",
+        api_key="dummy",
+    )
+
+    assert isinstance(provider, AnthropicProvider)
+    assert provider.config.endpoint == "https://api.anthropic.com/v1/messages"
+    assert provider.config.model == "claude-3-7-sonnet-latest"
+    assert provider.config.api_key == "dummy"
+
+
+def test_create_provider_supports_google_with_registry_defaults(monkeypatch) -> None:
+    """Google provider should resolve to the Gemini protocol implementation."""
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False)
+    monkeypatch.delenv("AI_API_MODEL", raising=False)
+
+    provider = create_provider(
+        provider_name="google",
+        api_key="dummy",
+    )
+
+    assert isinstance(provider, GoogleProvider)
+    assert provider.config.endpoint == "https://generativelanguage.googleapis.com/v1beta/models"
+    assert provider.config.model == "gemini-2.5-flash"
+    assert provider.config.api_key == "dummy"
+
+
+@pytest.mark.parametrize("provider_name", ["x", "xai"])
+def test_create_provider_supports_x_aliases_with_registry_defaults(
+    provider_name: str,
+    monkeypatch,
+) -> None:
+    """x/xai aliases should resolve to OpenAI-compatible provider defaults."""
+    monkeypatch.delenv("AI_API_ENDPOINT", raising=False)
+    monkeypatch.delenv("AI_API_MODEL", raising=False)
+
+    provider = create_provider(
+        provider_name=provider_name,
+        api_key="dummy",
+    )
+
+    assert isinstance(provider, OpenAICompatibleProvider)
+    assert provider.config.endpoint == "https://api.x.ai/v1"
+    assert provider.config.model == "grok-3-latest"
+    assert provider.config.api_key == "dummy"
