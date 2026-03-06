@@ -14,10 +14,10 @@ It does not manage conversational state, orchestration, agents, tool calling, mu
 
 The repository is organized around clear separation of concerns:
 
-- [`src/cli.py`](../src/cli.py): argument parsing, process-level I/O, exit codes, and runtime wiring
-- [`src/core/`](../src/core): business logic, domain models, and payload validation
-- [`src/services/`](../src/services): provider abstractions and provider implementations
-- [`src/utils/`](../src/utils): filesystem output helpers
+- [`src/ai_prompt_runner/cli.py`](../src/ai_prompt_runner/cli.py): argument parsing, process-level I/O, exit codes, and runtime wiring
+- [`src/ai_prompt_runner/core/`](../src/ai_prompt_runner/core): business logic, domain models, and payload validation
+- [`src/ai_prompt_runner/services/`](../src/ai_prompt_runner/services): provider abstractions and provider implementations
+- [`src/ai_prompt_runner/utils/`](../src/ai_prompt_runner/utils): filesystem output helpers
 - [`tests/`](../tests): unit, contract, schema, compatibility, and end-to-end validation
 - [`schemas/`](../schemas): formal JSON output contract
 - [`docs/`](../docs): versioned technical documentation
@@ -40,16 +40,16 @@ The CLI layer must not contain business logic or provider-specific request logic
 
 The core layer contains the stable execution logic:
 
-- [`src/core/models.py`](../src/core/models.py): request and response domain models
-- [`src/core/runner.py`](../src/core/runner.py): stateless prompt execution orchestration
-- [`src/core/validators.py`](../src/core/validators.py): normalized payload validation
-- [`src/core/errors.py`](../src/core/errors.py): project-level error hierarchy
+- [`src/ai_prompt_runner/core/models.py`](../src/ai_prompt_runner/core/models.py): request and response domain models
+- [`src/ai_prompt_runner/core/runner.py`](../src/ai_prompt_runner/core/runner.py): stateless prompt execution orchestration
+- [`src/ai_prompt_runner/core/validators.py`](../src/ai_prompt_runner/core/validators.py): normalized payload validation
+- [`src/ai_prompt_runner/core/errors.py`](../src/ai_prompt_runner/core/errors.py): project-level error hierarchy
 
 The runner assumes a provider implementation that conforms to the provider contract and returns response text for a single prompt execution.
 
 ## Provider Contract
 
-The provider layer is built around [`src/services/base.py`](../src/services/base.py).
+The provider layer is built around [`src/ai_prompt_runner/services/base.py`](../src/ai_prompt_runner/services/base.py).
 
 Stable contract:
 
@@ -61,10 +61,22 @@ The provider abstraction is validated by reusable contract tests.
 
 Current provider implementations:
 
-- [`src/services/http_provider.py`](../src/services/http_provider.py): real HTTP-backed provider
-- [`src/services/mock_provider.py`](../src/services/mock_provider.py): deterministic no-network provider used for contract validation and stable testing
+- [`src/ai_prompt_runner/services/http_provider.py`](../src/ai_prompt_runner/services/http_provider.py): legacy generic JSON-over-HTTP provider
+- [`src/ai_prompt_runner/services/openai_compatible_provider.py`](../src/ai_prompt_runner/services/openai_compatible_provider.py): protocol provider for OpenAI-compatible APIs
+- [`src/ai_prompt_runner/services/anthropic_provider.py`](../src/ai_prompt_runner/services/anthropic_provider.py): protocol provider for Anthropic Messages API
+- [`src/ai_prompt_runner/services/google_provider.py`](../src/ai_prompt_runner/services/google_provider.py): protocol provider for Gemini generateContent API
+- [`src/ai_prompt_runner/services/mock_provider.py`](../src/ai_prompt_runner/services/mock_provider.py): deterministic no-network provider used for contract validation and stable testing
 
-Provider creation and runtime configuration are centralized in [`src/services/provider_factory.py`](../src/services/provider_factory.py).
+Provider creation and runtime configuration are centralized in [`src/ai_prompt_runner/services/provider_factory.py`](../src/ai_prompt_runner/services/provider_factory.py).
+
+### Protocol Mapping
+
+Provider selection is protocol-first, with aliases mapped through the registry:
+
+- OpenAI-compatible protocol: `openai_compatible`, `openai`, `openrouter`, `groq`, `together`, `fireworks`, `perplexity`, `inception`, `x`, `xai`, `lmstudio`, `ollama`
+- Anthropic Messages protocol: `anthropic`
+- Gemini generateContent protocol: `google`
+- Legacy generic HTTP protocol: `http`
 
 ## Output Contract
 
@@ -98,7 +110,7 @@ Runtime configuration follows a deterministic precedence model:
 
 `CLI > environment variables > TOML config > built-in defaults`
 
-This precedence is applied in [`src/cli.py`](../src/cli.py) before provider construction.
+This precedence is applied in [`src/ai_prompt_runner/cli.py`](../src/ai_prompt_runner/cli.py) before provider construction.
 
 Important constraint:
 

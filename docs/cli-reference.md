@@ -66,9 +66,28 @@ Rules:
 
 Provider name used for execution.
 
-Current supported runtime value:
+Supported runtime values:
 
 - `http`
+- `openai_compatible`
+- `openai`
+- `openrouter`
+- `groq`
+- `together`
+- `fireworks`
+- `perplexity`
+- `inception`
+- `x`
+- `xai`
+- `lmstudio`
+- `ollama`
+- `anthropic`
+- `google`
+
+Implementation note:
+
+- protocol-compatible aliases reuse the same provider class via the registry
+- for example, `openai`, `openrouter`, `groq`, `xai`, `ollama` all resolve to the OpenAI-compatible provider
 
 ### `--config`
 
@@ -108,7 +127,7 @@ Recommendation:
 
 Provider model name.
 
-If omitted, the provider factory uses environment or default resolution.
+If omitted, the provider factory uses environment or provider-registry default resolution.
 
 ### `--out-json`
 
@@ -188,6 +207,51 @@ ai-prompt-runner \
   --api-endpoint "http://localhost:11434/api/generate" \
   --api-key "dummy" \
   --api-model "llama3.2"
+```
+
+Run with Anthropic defaults:
+
+```bash
+ai-prompt-runner \
+  --provider anthropic \
+  --api-key "$AI_API_KEY" \
+  --prompt "Explain timeout strategy"
+```
+
+Run with OpenAI defaults:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --prompt "Explain configuration precedence"
+```
+
+Run with Google defaults:
+
+```bash
+ai-prompt-runner \
+  --provider google \
+  --api-key "$AI_API_KEY" \
+  --prompt "Summarize the provider contract"
+```
+
+Run with xAI defaults:
+
+```bash
+ai-prompt-runner \
+  --provider xai \
+  --api-key "$AI_API_KEY" \
+  --prompt "Write a short release note"
+```
+
+Run with local Ollama defaults:
+
+```bash
+ai-prompt-runner \
+  --provider ollama \
+  --api-key "dummy" \
+  --prompt "Hello from ollama"
 ```
 
 Run with TOML config and prompt file:
