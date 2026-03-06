@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ai_prompt_runner.core.errors import PromptRunnerError
+from ai_prompt_runner.services.anthropic_provider import AnthropicProvider, AnthropicProviderConfig
 from ai_prompt_runner.services.base import BaseProvider
+from ai_prompt_runner.services.google_provider import GoogleProvider, GoogleProviderConfig
 from ai_prompt_runner.services.http_provider import HTTPProvider, HTTPProviderConfig
 from ai_prompt_runner.services.openai_compatible_provider import OpenAICompatibleProvider, OpenAICompatibleProviderConfig
 
@@ -61,6 +63,32 @@ def _build_openai_compatible_provider(config: ProviderRuntimeConfig) -> BaseProv
             max_retries=config.max_retries,
         )
     )
+
+def _build_anthropic_provider(config: ProviderRuntimeConfig) -> BaseProvider:
+    """Build an Anthropic Messages API provider from normalized runtime configuration."""
+    return AnthropicProvider(
+        AnthropicProviderConfig(
+            endpoint=config.endpoint,
+            api_key=config.api_key,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+            max_retries=config.max_retries,
+        )
+    )
+
+
+def _build_google_provider(config: ProviderRuntimeConfig) -> BaseProvider:
+    """Build a Google Gemini generateContent provider from normalized runtime configuration."""
+    return GoogleProvider(
+        GoogleProviderConfig(
+            endpoint=config.endpoint,
+            api_key=config.api_key,
+            model=config.model,
+            timeout_seconds=config.timeout_seconds,
+            max_retries=config.max_retries,
+        )
+    )
+
 
 # Central provider registry with protocol-level provider classes and brand aliases.
 PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
@@ -118,11 +146,35 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
         default_endpoint="https://api.inceptionlabs.ai/v1",
         default_model="inception/mercury-2",
     ),
+    "x": ProviderSpec(
+        provider_id="x",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.x.ai/v1",
+        default_model="grok-3-latest",
+    ),
+    "xai": ProviderSpec(
+        provider_id="xai",
+        builder=_build_openai_compatible_provider,
+        default_endpoint="https://api.x.ai/v1",
+        default_model="grok-3-latest",
+    ),
     "lmstudio": ProviderSpec(
         provider_id="lmstudio",
         builder=_build_openai_compatible_provider,
         default_endpoint="http://localhost:1234/v1",
         default_model="local-model",
+    ),
+    "anthropic": ProviderSpec(
+        provider_id="anthropic",
+        builder=_build_anthropic_provider,
+        default_endpoint="https://api.anthropic.com/v1/messages",
+        default_model="claude-3-7-sonnet-latest",
+    ),
+    "google": ProviderSpec(
+        provider_id="google",
+        builder=_build_google_provider,
+        default_endpoint="https://generativelanguage.googleapis.com/v1beta/models",
+        default_model="gemini-2.5-flash",
     ),
 }
 
