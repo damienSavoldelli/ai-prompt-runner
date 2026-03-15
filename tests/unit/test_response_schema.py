@@ -157,3 +157,77 @@ def test_response_schema_accepts_optional_usage_shape() -> None:
     )
 
     assert errors == []
+
+
+def test_response_schema_accepts_execution_context_shape() -> None:
+    """Official schema accepts additive execution provenance context."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Echo: Hello",
+        "metadata": {
+            "provider": "openai",
+            "timestamp_utc": "2026-02-28T12:00:00+00:00",
+            "model": "gpt-4o-mini",
+            "execution_context": {
+                "provider_protocol": "openai-compatible",
+                "api_endpoint": "https://api.openai.com/v1",
+                "model_requested": "gpt-4o-mini",
+                "model_resolved": "gpt-4o-mini-2026-02-15",
+                "runner_version": "1.6.0",
+                "prompt_hash": "sha256:" + ("a" * 64),
+                "runtime": {
+                    "stream": False,
+                    "system_prompt_provided": False,
+                    "temperature": None,
+                    "max_tokens": None,
+                    "top_p": None,
+                    "timeout_seconds": 30,
+                    "max_retries": 0,
+                },
+            },
+        },
+    }
+
+    errors = sorted(
+        _build_validator().iter_errors(payload),
+        key=lambda err: list(err.path),
+    )
+
+    assert errors == []
+
+
+def test_response_schema_rejects_invalid_prompt_hash_pattern() -> None:
+    """Official schema rejects provenance hashes that are not SHA256 digests."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Echo: Hello",
+        "metadata": {
+            "provider": "openai",
+            "timestamp_utc": "2026-02-28T12:00:00+00:00",
+            "execution_context": {
+                "provider_protocol": "openai-compatible",
+                "api_endpoint": "https://api.openai.com/v1",
+                "model_requested": "gpt-4o-mini",
+                "model_resolved": None,
+                "runner_version": "1.6.0",
+                "prompt_hash": "sha256:invalid",
+                "runtime": {
+                    "stream": False,
+                    "system_prompt_provided": False,
+                    "temperature": None,
+                    "max_tokens": None,
+                    "top_p": None,
+                    "timeout_seconds": 30,
+                    "max_retries": 0,
+                },
+            },
+        },
+    }
+
+    errors = sorted(
+        _build_validator().iter_errors(payload),
+        key=lambda err: list(err.path),
+    )
+
+    assert len(errors) == 1
+    assert list(errors[0].path) == ["metadata", "execution_context", "prompt_hash"]
