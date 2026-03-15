@@ -1324,7 +1324,11 @@ def test_cli_returns_error_when_run_log_dir_creation_fails(monkeypatch, capsys) 
     assert "run log directory is not writable" in captured.err
 
 
-def test_cli_returns_error_when_second_request_log_write_fails(monkeypatch, capsys) -> None:
+def test_cli_returns_error_when_second_request_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
     """Fail when enriched request log write fails after provider resolution."""
     calls = {"count": 0}
 
@@ -1336,18 +1340,33 @@ def test_cli_returns_error_when_second_request_log_write_fails(monkeypatch, caps
     monkeypatch.setattr(cli, "_write_run_request_log", fake_write_run_request_log)
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
-    exit_code = cli.main(["--prompt", "Hello", "--provider", "http", "--log-run-dir", "logs"])
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 1
     assert "run log directory is not writable" in captured.err
 
 
-def test_cli_dry_run_returns_error_when_response_log_write_fails(monkeypatch, capsys) -> None:
+def test_cli_dry_run_returns_error_when_response_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
     """Dry-run should fail when response log artifact cannot be persisted."""
     monkeypatch.setattr(cli, "_write_run_response_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
+    log_root = tmp_path / "logs"
     exit_code = cli.main(
         [
             "--provider",
@@ -1358,7 +1377,7 @@ def test_cli_dry_run_returns_error_when_response_log_write_fails(monkeypatch, ca
             "dummy",
             "--dry-run",
             "--log-run-dir",
-            "logs",
+            str(log_root),
         ]
     )
 
@@ -1367,11 +1386,16 @@ def test_cli_dry_run_returns_error_when_response_log_write_fails(monkeypatch, ca
     assert "run log directory is not writable" in captured.err
 
 
-def test_cli_returns_error_when_final_response_log_write_fails(monkeypatch, capsys) -> None:
+def test_cli_returns_error_when_final_response_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
     """Execution should fail when final response log artifact cannot be persisted."""
     monkeypatch.setattr(cli, "_write_run_response_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
 
+    log_root = tmp_path / "logs"
     exit_code = cli.main(
         [
             "--prompt",
@@ -1379,7 +1403,7 @@ def test_cli_returns_error_when_final_response_log_write_fails(monkeypatch, caps
             "--provider",
             "http",
             "--log-run-dir",
-            "logs",
+            str(log_root),
         ]
     )
 
@@ -1391,6 +1415,7 @@ def test_cli_returns_error_when_final_response_log_write_fails(monkeypatch, caps
 def test_cli_provider_spec_failure_ignores_log_error_write_oserror(
     monkeypatch,
     capsys,
+    tmp_path: Path,
 ) -> None:
     """Provider-spec failure should still return runtime error when log write fails."""
     monkeypatch.setattr(
@@ -1400,7 +1425,17 @@ def test_cli_provider_spec_failure_ignores_log_error_write_oserror(
     )
     monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
 
-    exit_code = cli.main(["--prompt", "Hello", "--provider", "unknown", "--log-run-dir", "logs"])
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "unknown",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 1
@@ -1410,10 +1445,12 @@ def test_cli_provider_spec_failure_ignores_log_error_write_oserror(
 def test_cli_strict_capability_failure_ignores_log_error_write_oserror(
     monkeypatch,
     capsys,
+    tmp_path: Path,
 ) -> None:
     """Strict capability failure should still return runtime error when log write fails."""
     monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
 
+    log_root = tmp_path / "logs"
     exit_code = cli.main(
         [
             "--prompt",
@@ -1424,7 +1461,7 @@ def test_cli_strict_capability_failure_ignores_log_error_write_oserror(
             "0.2",
             "--strict-capabilities",
             "--log-run-dir",
-            "logs",
+            str(log_root),
         ]
     )
 
@@ -1436,6 +1473,7 @@ def test_cli_strict_capability_failure_ignores_log_error_write_oserror(
 def test_cli_provider_creation_failure_ignores_log_error_write_oserror(
     monkeypatch,
     capsys,
+    tmp_path: Path,
 ) -> None:
     """Provider creation failure should still return runtime error when log write fails."""
     monkeypatch.setattr(
@@ -1445,7 +1483,17 @@ def test_cli_provider_creation_failure_ignores_log_error_write_oserror(
     )
     monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
 
-    exit_code = cli.main(["--prompt", "Hello", "--provider", "http", "--log-run-dir", "logs"])
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 1
@@ -1455,6 +1503,7 @@ def test_cli_provider_creation_failure_ignores_log_error_write_oserror(
 def test_cli_runner_failure_ignores_log_error_write_oserror(
     monkeypatch,
     capsys,
+    tmp_path: Path,
 ) -> None:
     """Runner failure should still return runtime error when log write fails."""
 
@@ -1469,7 +1518,17 @@ def test_cli_runner_failure_ignores_log_error_write_oserror(
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
     monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
 
-    exit_code = cli.main(["--prompt", "Hello", "--provider", "http", "--log-run-dir", "logs"])
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
 
     captured = capsys.readouterr()
     assert exit_code == 1
