@@ -11,6 +11,7 @@ class PromptRequest:
 
     prompt_text: str
     provider: str
+    stream: bool = False
     
 @dataclass(frozen=True)
 class PromptResponse:
