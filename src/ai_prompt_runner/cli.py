@@ -13,7 +13,12 @@ from dotenv import load_dotenv
 from ai_prompt_runner.core.errors import PromptRunnerError
 from ai_prompt_runner.core.models import PromptRequest
 from ai_prompt_runner.core.runner import PromptRunner
-from ai_prompt_runner.services.provider_factory import ConfigurationError, create_provider
+from ai_prompt_runner.services.provider_factory import (
+    ConfigurationError,
+    ProviderSpec,
+    create_provider,
+    get_provider_spec,
+)
 from ai_prompt_runner.utils.file_io import write_json, write_markdown
 
 # Define exit codes
@@ -208,6 +213,58 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
     return args
 
 
+def _requested_capabilities(args: argparse.Namespace) -> dict[str, bool]:
+    """Return capability requests implied by current CLI arguments."""
+    return {
+        "stream": bool(args.stream),
+        "system": args.system is not None,
+        "temperature": args.temperature is not None,
+        "top_p": args.top_p is not None,
+        "max_tokens": args.max_tokens is not None,
+    }
+
+
+def _evaluate_provider_capabilities(
+    provider_spec: ProviderSpec,
+    args: argparse.Namespace,
+) -> tuple[list[str], list[str]]:
+    """
+    Evaluate requested CLI options against provider capabilities.
+
+    Returns:
+    - warnings (permissive mode informational messages)
+    - errors (strict mode blocking messages)
+    """
+    warnings: list[str] = []
+    errors: list[str] = []
+
+    requested = _requested_capabilities(args)
+
+    for capability_name, is_requested in requested.items():
+        if not is_requested:
+            continue
+
+        capability_state = getattr(provider_spec.capabilities, capability_name)
+        if capability_state == "supported":
+            continue
+
+        message = (
+            f"provider '{provider_spec.provider_id}' reports capability "
+            f"'{capability_name}' as {capability_state}."
+        )
+
+        if args.strict_capabilities:
+            errors.append(message)
+            continue
+
+        warnings.append(
+            f"{message} Continuing in permissive mode; behavior may fallback or "
+            "provider may ignore this option."
+        )
+
+    return warnings, errors
+
+
 # Build safe preview values for --help without leaking secrets.
 def _env_preview() -> tuple[str, str, str]:
     """Return safe preview of environment configuration for help text."""
@@ -258,6 +315,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out-md", default=None, help="Markdown output path.")
     parser.add_argument("--stream",action="store_true",help="Stream response chunks to stdout when supported by the provider; final JSON/Markdown outputs are still written after completion.")
     parser.add_argument(
+        "--strict-capabilities",
+        action="store_true",
+        help="Fail when requested options are unsupported or unknown for the selected provider.",
+    )
+    parser.add_argument(
         "--temperature",
         type=_non_negative_float,
         default=None,
@@ -296,6 +358,22 @@ def main(argv: list[str] | None = None) -> int:
         prompt_text = _resolve_prompt_text(args)
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
+
+    # Validate requested capabilities before provider instantiation.
+    try:
+        provider_spec = get_provider_spec(args.provider)
+    except ConfigurationError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
+
+    warnings, errors = _evaluate_provider_capabilities(provider_spec, args)
+    for warning in warnings:
+        print(f"Warning: {warning}", file=sys.stderr)
+
+    if errors:
+        for error in errors:
+            print(f"Error: capability check failed: {error}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
     
     # Wire infrastructure (provider) to application logic (runner).
     try:
