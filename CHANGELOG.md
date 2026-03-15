@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.7.2] - 2026-03-15
+
+### Added
+
+- Added non-blocking mutation testing baseline with Cosmic Ray for validator contract hardening.
+- Added mutation CI workflow artifact export (`mutation-summary.md`, `cosmic-ray-results.ndjson`, `cr-session.sqlite`) for diagnostics.
+- Added targeted validator guardrail tests to close mutation survivors on boundary and additive-key behavior.
+
+### Changed
+
+- Added `cosmic-ray==8.4.4` to development dependencies.
+- Updated mutation workflow artifact upload action to `actions/upload-artifact@v5`.
+- Forced JavaScript-based GitHub Actions to run on Node 24 in mutation workflow (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`).
+- Updated testing documentation and README mutation section.
+
+### Notes
+
+- `v1.7.2` is an engineering hardening patch release focused on test robustness and CI diagnostics.
+- No CLI interface changes.
+- No output schema/contract changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.7.1] - 2026-03-15
 
 ### Added
