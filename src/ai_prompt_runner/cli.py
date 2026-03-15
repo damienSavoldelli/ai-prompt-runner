@@ -67,6 +67,30 @@ def _positive_int(value: str) -> int:
         raise argparse.ArgumentTypeError("timeout must be a positive integer.")
     return parsed
 
+
+def _non_negative_float(value: str) -> float:
+    """Argparse validator: temperature must be a float >= 0."""
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("temperature must be a float.") from exc
+
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("temperature must be greater than or equal to 0.")
+    return parsed
+
+
+def _top_p_float(value: str) -> float:
+    """Argparse validator: top-p must be a float in (0, 1]."""
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("top-p must be a float.") from exc
+
+    if parsed <= 0 or parsed > 1:
+        raise argparse.ArgumentTypeError("top-p must be greater than 0 and less than or equal to 1.")
+    return parsed
+
 def _prompt_file_text(value: str) -> str:
     """Argparse validator: read prompt text from a file and reject empty content."""
     try:
@@ -119,6 +143,9 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
         "provider",
         "api_endpoint",
         "api_model",
+        "temperature",
+        "max_tokens",
+        "top_p",
         "timeout",
         "retries",
         "out_json",
@@ -148,6 +175,9 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
     args.provider = _pick_no_env(args.provider, "provider", "http")
     args.api_endpoint = _pick_with_env(args.api_endpoint, "AI_API_ENDPOINT", "api_endpoint", None)
     args.api_model = _pick_with_env(args.api_model, "AI_API_MODEL", "api_model", None)
+    args.temperature = _pick_no_env(args.temperature, "temperature", None)
+    args.max_tokens = _pick_no_env(args.max_tokens, "max_tokens", None)
+    args.top_p = _pick_no_env(args.top_p, "top_p", None)
     args.timeout = _pick_no_env(args.timeout, "timeout", 30)
     args.retries = _pick_no_env(args.retries, "retries", 0)
     args.out_json = _pick_no_env(args.out_json, "out_json", "outputs/response.json")
@@ -158,6 +188,12 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
         args.api_endpoint = _http_url(str(args.api_endpoint))
     if "api_model" in config and args.api_model is not None:
         args.api_model = str(args.api_model).strip() or None
+    if "temperature" in config and args.temperature is not None:
+        args.temperature = _non_negative_float(str(args.temperature))
+    if "max_tokens" in config and args.max_tokens is not None:
+        args.max_tokens = _positive_int(str(args.max_tokens))
+    if "top_p" in config and args.top_p is not None:
+        args.top_p = _top_p_float(str(args.top_p))
     if "timeout" in config:
         args.timeout = _positive_int(str(args.timeout))
     if "retries" in config:
@@ -221,6 +257,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out-json", default=None, help="JSON output path.")
     parser.add_argument("--out-md", default=None, help="Markdown output path.")
     parser.add_argument("--stream",action="store_true",help="Stream response chunks to stdout when supported by the provider; final JSON/Markdown outputs are still written after completion.")
+    parser.add_argument(
+        "--temperature",
+        type=_non_negative_float,
+        default=None,
+        help="Optional generation temperature (float >= 0).",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=_positive_int,
+        default=None,
+        help="Optional max token budget for completion (integer > 0).",
+    )
+    parser.add_argument(
+        "--top-p",
+        type=_top_p_float,
+        default=None,
+        help="Optional nucleus sampling value (0 < top-p <= 1).",
+    )
     parser.add_argument("--timeout",type=_positive_int,default=None,help="HTTP timeout in seconds (must be > 0).")
     parser.add_argument( "--retries", type=_non_negative_int, default=None, help="Maximum retry attempts on network errors (must be >= 0).")
     return parser
@@ -269,6 +323,9 @@ def main(argv: list[str] | None = None) -> int:
                 prompt_text=prompt_text,
                 provider=args.provider,
                 system_prompt=args.system,
+                temperature=args.temperature,
+                max_tokens=args.max_tokens,
+                top_p=args.top_p,
                 stream=args.stream,
             )
             ,

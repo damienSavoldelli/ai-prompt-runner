@@ -13,6 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -165,7 +166,12 @@ class GoogleProvider(BaseProvider):
             return None
         return "".join(text_chunks)
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         """Send one prompt to Gemini and return generated text."""
         headers = {
             "x-goog-api-key": self.config.api_key,
@@ -215,6 +221,7 @@ class GoogleProvider(BaseProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
     ) -> Iterator[str]:
         """
         Stream generated text chunks from Google Gemini.

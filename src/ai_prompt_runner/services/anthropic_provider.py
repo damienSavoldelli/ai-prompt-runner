@@ -13,6 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -125,7 +126,12 @@ class AnthropicProvider(BaseProvider):
 
         return text
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         """Send one prompt to Anthropic and return generated text."""
         headers = {
             "x-api-key": self.config.api_key,
@@ -170,6 +176,7 @@ class AnthropicProvider(BaseProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
     ) -> Iterator[str]:
         """
         Stream generated text chunks from Anthropic's Messages API.

@@ -1,6 +1,6 @@
 import pytest
 
-from ai_prompt_runner.core.models import PromptRequest
+from ai_prompt_runner.core.models import GenerationConfig, PromptRequest
 from ai_prompt_runner.core.runner import PromptRunner
 from ai_prompt_runner.core.errors import ProviderError
 from ai_prompt_runner.services.base import BaseProvider
@@ -9,12 +9,22 @@ from ai_prompt_runner.services.base import BaseProvider
 class FakeProvider(BaseProvider):
     """Test double implementing the provider contract without network I/O."""
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         if system_prompt is not None:
             return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str, system_prompt: str | None = None):
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ):
         """Yield deterministic chunks for stream-path runner tests."""
         if system_prompt is not None:
             yield f"SYSTEM={system_prompt} | "
@@ -27,7 +37,12 @@ class FakeProvider(BaseProvider):
 class FakeNoStreamProvider(BaseProvider):
     """Provider stub that explicitly does not support streaming."""
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         if system_prompt is not None:
             return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
@@ -36,12 +51,48 @@ class FakeNoStreamProvider(BaseProvider):
 class FakeInvalidStreamChunkProvider(BaseProvider):
     """Provider stub emitting a non-string stream chunk for guard-rail coverage."""
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str, system_prompt: str | None = None):
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ):
         # Intentionally invalid chunk type to validate runner-level guard.
         yield 123
+
+
+class FakeCaptureConfigProvider(BaseProvider):
+    """Provider stub capturing forwarded generation configuration for assertions."""
+
+    def __init__(self) -> None:
+        self.last_config: GenerationConfig | None = None
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
+        self.last_config = generation_config
+        return f"Echo: {prompt}"
+
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ):
+        self.last_config = generation_config
+        yield "Echo: "
+        yield prompt
 
 
 def test_runner_returns_normalized_payload() -> None:
@@ -63,6 +114,8 @@ def test_runner_returns_normalized_payload() -> None:
     assert payload["response"] == "Echo: Hello"
     assert payload["metadata"]["provider"] == "fake"
     assert "timestamp_utc" in payload["metadata"]
+    assert isinstance(payload["metadata"]["execution_ms"], int)
+    assert payload["metadata"]["execution_ms"] >= 0
 
 
 def test_runner_stream_reconstructs_response_and_emits_chunks() -> None:
@@ -105,10 +158,12 @@ def test_runner_stream_and_non_stream_payloads_match_except_timestamp() -> None:
         )
     )
 
-    # Normalize runtime-generated timestamp so we can assert deterministic
+    # Normalize runtime-generated metadata so we can assert deterministic
     # payload equivalence between stream and non-stream execution paths.
     non_stream_payload["metadata"]["timestamp_utc"] = "<normalized>"
     stream_payload["metadata"]["timestamp_utc"] = "<normalized>"
+    non_stream_payload["metadata"]["execution_ms"] = "<normalized>"
+    stream_payload["metadata"]["execution_ms"] = "<normalized>"
 
     assert stream_payload == non_stream_payload
 
@@ -171,3 +226,97 @@ def test_runner_stream_rejects_non_string_chunks() -> None:
                 stream=True,
             )
         )
+
+
+def test_runner_forwards_generation_config_to_generate() -> None:
+    """Forward runtime controls to provider generate path when set."""
+    provider = FakeCaptureConfigProvider()
+    runner = PromptRunner(provider=provider)
+
+    runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            temperature=0.2,
+            max_tokens=150,
+            top_p=0.95,
+        )
+    )
+
+    assert provider.last_config is not None
+    assert provider.last_config.temperature == 0.2
+    assert provider.last_config.max_tokens == 150
+    assert provider.last_config.top_p == 0.95
+
+
+def test_runner_forwards_generation_config_to_generate_stream() -> None:
+    """Forward runtime controls to provider stream path when set."""
+    provider = FakeCaptureConfigProvider()
+    runner = PromptRunner(provider=provider)
+
+    runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            stream=True,
+            temperature=0.2,
+            max_tokens=150,
+            top_p=0.95,
+        )
+    )
+
+    assert provider.last_config is not None
+    assert provider.last_config.temperature == 0.2
+    assert provider.last_config.max_tokens == 150
+    assert provider.last_config.top_p == 0.95
+
+
+def test_runner_forwards_system_and_generation_config_to_generate() -> None:
+    """
+    Forward both system prompt and runtime controls to the non-stream provider path.
+    """
+    provider = FakeCaptureConfigProvider()
+    runner = PromptRunner(provider=provider)
+
+    payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            system_prompt="You are strict.",
+            temperature=0.2,
+            max_tokens=150,
+            top_p=0.95,
+        )
+    )
+
+    assert payload["response"] == "Echo: Hello"
+    assert provider.last_config is not None
+    assert provider.last_config.temperature == 0.2
+    assert provider.last_config.max_tokens == 150
+    assert provider.last_config.top_p == 0.95
+
+
+def test_runner_forwards_system_and_generation_config_to_generate_stream() -> None:
+    """
+    Forward both system prompt and runtime controls to the stream provider path.
+    """
+    provider = FakeCaptureConfigProvider()
+    runner = PromptRunner(provider=provider)
+
+    payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            stream=True,
+            system_prompt="You are strict.",
+            temperature=0.2,
+            max_tokens=150,
+            top_p=0.95,
+        )
+    )
+
+    assert payload["response"] == "Echo: Hello"
+    assert provider.last_config is not None
+    assert provider.last_config.temperature == 0.2
+    assert provider.last_config.max_tokens == 150
+    assert provider.last_config.top_p == 0.95

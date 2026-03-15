@@ -13,6 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -141,7 +142,12 @@ class OpenAICompatibleProvider(BaseProvider):
 
         return content
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         """
         Send a single prompt and return generated text.
 
@@ -191,6 +197,7 @@ class OpenAICompatibleProvider(BaseProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
     ) -> Iterator[str]:
         """
         Stream generated text chunks from an OpenAI-compatible provider.

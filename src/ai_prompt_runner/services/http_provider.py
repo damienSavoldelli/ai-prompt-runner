@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import requests
 
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.base import BaseProvider
 
 from ai_prompt_runner.core.errors import (
@@ -67,7 +68,12 @@ class HTTPProvider(BaseProvider):
             raise ProviderError(f"Provider returned HTTP {status_code}.")
         
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         """Send the prompt to the provider and return the response string."""
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
