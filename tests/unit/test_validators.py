@@ -497,3 +497,47 @@ def test_validate_response_payload_rejects_invalid_runtime_context_types(
 
     with pytest.raises(ValidationError, match=expected_message):
         validate_response_payload(payload)
+
+
+def test_validate_response_payload_accepts_zero_execution_ms() -> None:
+    """Accept execution_ms equal to zero (non-negative boundary)."""
+    payload = _base_execution_context_payload()
+    payload["metadata"]["execution_ms"] = 0
+
+    validate_response_payload(payload)
+
+
+def test_validate_response_payload_accepts_zero_usage_values() -> None:
+    """Accept usage counters equal to zero (non-negative boundary)."""
+    payload = _base_execution_context_payload()
+    payload["metadata"]["usage"] = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+    }
+
+    validate_response_payload(payload)
+
+
+def test_validate_response_payload_allows_additional_top_level_keys() -> None:
+    """Allow additive top-level keys without failing missing-key checks."""
+    payload = _base_execution_context_payload()
+    payload["extra_top_level"] = "kept for forward compatibility"
+
+    validate_response_payload(payload)
+
+
+def test_validate_response_payload_allows_additional_execution_context_keys() -> None:
+    """Allow additive execution_context keys without failing required-key checks."""
+    payload = _base_execution_context_payload()
+    payload["metadata"]["execution_context"]["extra_context_key"] = "allowed"
+
+    validate_response_payload(payload)
+
+
+def test_validate_response_payload_allows_additional_runtime_keys() -> None:
+    """Allow additive runtime keys without failing required-key checks."""
+    payload = _base_execution_context_payload()
+    payload["metadata"]["execution_context"]["runtime"]["extra_runtime_key"] = "allowed"
+
+    validate_response_payload(payload)
