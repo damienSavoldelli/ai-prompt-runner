@@ -70,3 +70,33 @@ def test_map_runtime_error_code_preserves_timeout_over_network() -> None:
     """
     exc = requests.Timeout("timed out")
     assert map_runtime_error_code(exc) == "timeout"
+
+
+def test_map_runtime_error_code_resolves_timeout_from_exception_cause_chain() -> None:
+    """Timeout classification should inspect wrapped exception causes."""
+    try:
+        try:
+            raise requests.Timeout("upstream timed out")
+        except requests.Timeout as inner_exc:
+            raise PromptRunnerError("provider call failed") from inner_exc
+    except PromptRunnerError as exc:
+        assert map_runtime_error_code(exc) == "timeout"
+
+
+def test_map_runtime_error_code_resolves_network_error_from_exception_context_chain() -> None:
+    """Network classification should inspect implicit exception context chains."""
+    try:
+        try:
+            raise requests.ConnectionError("socket reset")
+        except requests.ConnectionError:
+            # No explicit "from": this path populates __context__.
+            raise PromptRunnerError("provider call failed")
+    except PromptRunnerError as exc:
+        assert map_runtime_error_code(exc) == "network_error"
+
+
+def test_map_runtime_error_code_does_not_misclassify_auth_status_as_invalid_request() -> None:
+    """Generic provider 401/403/429 messages should not be tagged invalid_request."""
+    assert map_runtime_error_code(ProviderError("Provider returned HTTP 401.")) == "provider_error"
+    assert map_runtime_error_code(ProviderError("Provider returned HTTP 403.")) == "provider_error"
+    assert map_runtime_error_code(ProviderError("Provider returned HTTP 429.")) == "provider_error"
