@@ -15,6 +15,15 @@ class PromptRunner:
     def __init__(self, provider: BaseProvider) -> None:
         self.provider = provider
 
+    def _call_generate(self, request: PromptRequest) -> str:
+        """Call provider.generate with optional system prompt passthrough."""
+        if request.system_prompt is None:
+            return self.provider.generate(prompt=request.prompt_text)
+        return self.provider.generate(
+            prompt=request.prompt_text,
+            system_prompt=request.system_prompt,
+        )
+
     def _generate_response_text(
         self,
         request: PromptRequest,
@@ -22,18 +31,24 @@ class PromptRunner:
     ) -> str:
         """Generate response text with optional streaming fallback behavior."""
         if not request.stream:
-            return self.provider.generate(prompt=request.prompt_text)
+            return self._call_generate(request)
 
         # Keep stream support optional: if a provider does not implement
         # streaming, fallback to non-stream execution.
         stream_fn = getattr(self.provider, "generate_stream", None)
         if not callable(stream_fn):
-            return self.provider.generate(prompt=request.prompt_text)
+            return self._call_generate(request)
 
         try:
-            stream_iter = stream_fn(prompt=request.prompt_text)
+            if request.system_prompt is None:
+                stream_iter = stream_fn(prompt=request.prompt_text)
+            else:
+                stream_iter = stream_fn(
+                    prompt=request.prompt_text,
+                    system_prompt=request.system_prompt,
+                )
         except NotImplementedError:
-            return self.provider.generate(prompt=request.prompt_text)
+            return self._call_generate(request)
 
         chunks: list[str] = []
         for chunk in stream_iter:

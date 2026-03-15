@@ -125,7 +125,7 @@ class AnthropicProvider(BaseProvider):
 
         return text
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Send one prompt to Anthropic and return generated text."""
         headers = {
             "x-api-key": self.config.api_key,
@@ -137,6 +137,8 @@ class AnthropicProvider(BaseProvider):
             "max_tokens": self.config.max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
+        if system_prompt is not None:
+            payload["system"] = system_prompt
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -164,7 +166,11 @@ class AnthropicProvider(BaseProvider):
         # Defensive fallback: loop always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
 
-    def generate_stream(self, prompt: str) -> Iterator[str]:
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+    ) -> Iterator[str]:
         """
         Stream generated text chunks from Anthropic's Messages API.
 
@@ -183,6 +189,8 @@ class AnthropicProvider(BaseProvider):
             "messages": [{"role": "user", "content": prompt}],
             "stream": True,
         }
+        if system_prompt is not None:
+            payload["system"] = system_prompt
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False

@@ -141,7 +141,7 @@ class OpenAICompatibleProvider(BaseProvider):
 
         return content
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """
         Send a single prompt and return generated text.
 
@@ -151,9 +151,14 @@ class OpenAICompatibleProvider(BaseProvider):
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
         }
+        messages: list[dict[str, str]] = []
+        if system_prompt is not None:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self.config.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
         }
 
         # Retry only transient transport errors. Deterministic HTTP responses are handled directly.
@@ -182,7 +187,11 @@ class OpenAICompatibleProvider(BaseProvider):
         # Defensive fallback: the loop above always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
 
-    def generate_stream(self, prompt: str) -> Iterator[str]:
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+    ) -> Iterator[str]:
         """
         Stream generated text chunks from an OpenAI-compatible provider.
 
@@ -194,9 +203,14 @@ class OpenAICompatibleProvider(BaseProvider):
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
         }
+        messages: list[dict[str, str]] = []
+        if system_prompt is not None:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self.config.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             "stream": True,
         }
 

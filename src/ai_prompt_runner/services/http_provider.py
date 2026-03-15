@@ -35,6 +35,21 @@ class HTTPProvider(BaseProvider):
 
     def __init__(self, config: HTTPProviderConfig) -> None:
         self.config = config
+
+    def _effective_prompt(
+        self,
+        prompt: str,
+        system_prompt: str | None,
+    ) -> str:
+        """
+        Build a single prompt string for providers without role-aware payloads.
+
+        This keeps HTTPProvider compatible with `--system` without introducing
+        role/message protocol complexity in this generic provider.
+        """
+        if system_prompt is None:
+            return prompt
+        return f"SYSTEM:\n{system_prompt}\n\nUSER:\n{prompt}"
         
     def _raise_for_mapped_status(self, response: requests.Response) -> None:
         """Raise domain-specific exceptions for known HTTP error statuses."""
@@ -52,13 +67,16 @@ class HTTPProvider(BaseProvider):
             raise ProviderError(f"Provider returned HTTP {status_code}.")
         
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Send the prompt to the provider and return the response string."""
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
         }
-        payload = {"model": self.config.model, "prompt": prompt}
+        payload = {
+            "model": self.config.model,
+            "prompt": self._effective_prompt(prompt, system_prompt),
+        }
 
         # Implement simple retry logic for transient network errors.
         for attempt in range(self.config.max_retries + 1):

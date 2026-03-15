@@ -10,11 +10,17 @@ from ai_prompt_runner import cli
 class FakeProvider:
     """E2E test double returning deterministic output."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+        if system_prompt is not None:
+            return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str):
+    def generate_stream(self, prompt: str, system_prompt: str | None = None):
         """Stream deterministic chunks to exercise CLI streaming behavior."""
+        if system_prompt is not None:
+            for char in f"Echo: SYSTEM={system_prompt} | USER={prompt}":
+                yield char
+            return
         for char in f"Echo: {prompt}":
             yield char
 
@@ -101,10 +107,62 @@ def test_cli_main_forwards_timeout_and_retries_to_provider_factory(monkeypatch, 
     assert captured["max_retries"] == 2
 
 
+def test_cli_main_forwards_system_prompt_to_runner(monkeypatch, tmp_path: Path) -> None:
+    """Forward --system value into PromptRequest before runner execution."""
+    captured: dict = {}
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            captured["system_prompt"] = request.system_prompt
+            return {
+                "prompt": request.prompt_text,
+                "response": f"Echo: {request.prompt_text}",
+                "metadata": {
+                    "provider": request.provider,
+                    "timestamp_utc": "2026-01-01T00:00:00+00:00",
+                },
+            }
+
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--system",
+            "You are strict.",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["system_prompt"] == "You are strict."
+
+
 def test_cli_rejects_blank_prompt() -> None:
     """Reject a blank prompt argument as a usage error."""
     with pytest.raises(SystemExit) as exc_info:
         cli.main(["--prompt", "   "])
+
+    assert exc_info.value.code == 2
+
+
+def test_cli_rejects_blank_system_prompt() -> None:
+    """Reject a blank system instruction argument as a usage error."""
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--prompt", "Hello", "--system", "   "])
 
     assert exc_info.value.code == 2
 
@@ -425,6 +483,7 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     # argparse writes --help output to stdout and exits with code 0.
     captured = capsys.readouterr()
     assert "--prompt-file" in captured.out
+    assert "--system" in captured.out
     assert "--stream" in captured.out
     assert "--config" in captured.out
     assert "piped stdin" in captured.out
