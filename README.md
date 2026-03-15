@@ -48,6 +48,7 @@ Explore the full project overview, roadmap and methodology here:
 - [System Prompt (--system)](#system-prompt---system)
 - [Streaming (--stream)](#streaming---stream)
 - [Runtime Controls](#runtime-controls)
+- [Safety Modes](#safety-modes)
 - [Execution Metadata](#execution-metadata)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
@@ -373,6 +374,60 @@ ai-prompt-runner \
 ```
 
 These controls are passed to protocol providers and mapped to provider-native request fields.
+
+## Safety Modes
+
+Use safety/diagnostic flags to validate execution intent before runtime:
+
+- `--strict-capabilities`: fail when requested options are `unsupported` or `unknown` for the selected provider.
+- `--dry-run`: validate resolved config and capability checks, then exit without generation.
+- `--print-effective-config`: print resolved runtime configuration (with masked API key).
+
+Capability states are registry-driven per provider:
+
+- `supported`
+- `unsupported`
+- `unknown`
+
+Default mode is permissive:
+
+- capability mismatches produce warnings
+- execution continues (provider fallback or provider-side ignore may happen)
+
+With `--strict-capabilities`, capability mismatches are treated as hard runtime errors.
+
+Current capability matrix fields:
+
+- `stream`
+- `system`
+- `usage`
+- `temperature`
+- `top_p`
+- `max_tokens`
+- `tools` (reserved; currently unsupported across providers)
+
+Example strict capability check:
+
+```bash
+ai-prompt-runner \
+  --provider http \
+  --temperature 0.2 \
+  --strict-capabilities \
+  --prompt "Hello"
+```
+
+Example dry-run preflight:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --dry-run \
+  --print-effective-config
+```
+
+`--dry-run` does not call provider generation and does not write JSON/Markdown artifacts.
+In dry-run mode, prompt input is optional because execution is preflight-only.
 
 ## Execution Metadata
 
