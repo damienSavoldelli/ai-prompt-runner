@@ -1,5 +1,7 @@
 """Anthropic Messages API provider implementation using requests."""
 
+import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import requests
@@ -80,6 +82,49 @@ class AnthropicProvider(BaseProvider):
 
         raise ProviderError("Provider response must contain at least one text content block.")
 
+    def _extract_stream_delta(self, event: dict) -> str | None:
+        """
+        Extract text delta from an Anthropic SSE event payload.
+
+        We currently consume text via `content_block_delta` events:
+        {
+            "type": "content_block_delta",
+            "delta": {"type": "text_delta", "text": "..."}
+        }
+        """
+        if not isinstance(event, dict):
+            raise ProviderError("Provider streaming event must be an object.")
+
+        event_type = event.get("type")
+        if not isinstance(event_type, str):
+            return None
+
+        if event_type == "error":
+            error_obj = event.get("error")
+            if isinstance(error_obj, dict):
+                message = error_obj.get("message")
+                if isinstance(message, str) and message.strip():
+                    raise ProviderError(f"Provider stream error: {message}")
+            raise ProviderError("Provider stream returned an error event.")
+
+        if event_type != "content_block_delta":
+            return None
+
+        delta = event.get("delta")
+        if not isinstance(delta, dict):
+            raise ProviderError("Provider streaming event must contain object 'delta'.")
+
+        if delta.get("type") != "text_delta":
+            return None
+
+        text = delta.get("text")
+        if text is None:
+            return None
+        if not isinstance(text, str):
+            raise ProviderError("Provider streaming delta 'text' must be a string.")
+
+        return text
+
     def generate(self, prompt: str) -> str:
         """Send one prompt to Anthropic and return generated text."""
         headers = {
@@ -115,6 +160,73 @@ class AnthropicProvider(BaseProvider):
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
             return self._extract_text(body)
+
+        # Defensive fallback: loop always returns or raises.
+        raise ProviderError("Provider request failed unexpectedly.")
+
+    def generate_stream(self, prompt: str) -> Iterator[str]:
+        """
+        Stream generated text chunks from Anthropic's Messages API.
+
+        Notes:
+        - retries are attempted only while no chunk has been emitted
+        - once chunks are emitted, retrying would duplicate visible output
+        """
+        headers = {
+            "x-api-key": self.config.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.config.model,
+            "max_tokens": self.config.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
+
+        for attempt in range(self.config.max_retries + 1):
+            emitted_any_chunk = False
+            try:
+                response = requests.post(
+                    self.config.endpoint,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.config.timeout_seconds,
+                    stream=True,
+                )
+                self._raise_for_mapped_status(response)
+
+                for line in response.iter_lines(decode_unicode=True):
+                    if line is None:
+                        continue
+                    normalized_line = line.strip()
+                    if not normalized_line:
+                        continue
+                    if not normalized_line.startswith("data:"):
+                        continue
+
+                    data_value = normalized_line[len("data:") :].strip()
+                    if data_value == "[DONE]":
+                        return
+
+                    try:
+                        event = json.loads(data_value)
+                    except json.JSONDecodeError as exc:
+                        raise ProviderError(
+                            "Provider returned invalid streaming event JSON."
+                        ) from exc
+
+                    delta_text = self._extract_stream_delta(event)
+                    if delta_text is None:
+                        continue
+
+                    emitted_any_chunk = True
+                    yield delta_text
+                return
+            except requests.RequestException as exc:
+                if emitted_any_chunk or attempt == self.config.max_retries:
+                    raise ProviderError(f"Provider request failed: {exc}") from exc
+                continue
 
         # Defensive fallback: loop always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
