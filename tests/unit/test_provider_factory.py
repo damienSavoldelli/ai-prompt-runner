@@ -260,7 +260,6 @@ def test_http_provider_capabilities_are_explicitly_limited() -> None:
     assert spec.capabilities.temperature == "unsupported"
     assert spec.capabilities.top_p == "unsupported"
     assert spec.capabilities.max_tokens == "unsupported"
-    assert spec.capabilities.tools == "unsupported"
 
 
 def test_openai_compatible_aliases_expose_unknown_runtime_controls() -> None:
@@ -277,7 +276,6 @@ def test_openai_compatible_aliases_expose_unknown_runtime_controls() -> None:
     assert spec.capabilities.temperature == "unknown"
     assert spec.capabilities.top_p == "unknown"
     assert spec.capabilities.max_tokens == "unknown"
-    assert spec.capabilities.tools == "unsupported"
 
 
 def test_anthropic_and_google_capabilities_are_marked_supported() -> None:
@@ -292,4 +290,3 @@ def test_anthropic_and_google_capabilities_are_marked_supported() -> None:
         assert spec.capabilities.temperature == "supported"
         assert spec.capabilities.top_p == "supported"
         assert spec.capabilities.max_tokens == "supported"
-        assert spec.capabilities.tools == "unsupported"
