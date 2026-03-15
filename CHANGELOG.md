@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.2.0] - 2026-03-15
+
+### Added
+
+- Added provider streaming contract support through `generate_stream(prompt)` with explicit fallback semantics.
+- Added CLI stream mode via `--stream` for progressive chunk rendering on stdout.
+- Added streaming implementations for:
+    - OpenAI-compatible protocol provider
+    - Anthropic Messages protocol provider
+    - Google Gemini protocol provider
+    - MockProvider (deterministic test stream)
+- Added comprehensive streaming coverage across:
+    - provider unit tests (nominal, retries, malformed events, protocol errors)
+    - provider contract tests
+    - runner/CLI stream behavior tests
+
+### Changed
+
+- Preserved deterministic final artifact behavior: stream mode still writes complete JSON and Markdown outputs after full response assembly.
+- Updated technical documentation for streaming behavior and provider support:
+    - README
+    - docs/cli-reference.md
+    - docs/architecture.md
+    - docs/configuration.md
+
+### Notes
+
+- `v1.2.0` improves runtime execution feedback without changing architectural boundaries.
+- No output JSON schema/contract changes.
+- No CLI breaking changes.
+
 ## [v1.1.0] - 2026-03-06
 
 ### Added

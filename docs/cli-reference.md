@@ -145,6 +145,17 @@ Default:
 
 - `outputs/response.md`
 
+### `--stream`
+
+Enable progressive chunk rendering on stdout when the provider supports streaming.
+
+Rules:
+
+- optional boolean flag (`store_true`)
+- stream-capable providers emit chunks incrementally
+- non-stream providers fall back to standard `generate()` behavior
+- final JSON and Markdown outputs are still written after full completion
+
 ### `--timeout`
 
 HTTP timeout in seconds.
@@ -252,6 +263,16 @@ ai-prompt-runner \
   --provider ollama \
   --api-key "dummy" \
   --prompt "Hello from ollama"
+```
+
+Run with streaming enabled:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --stream \
+  --prompt "Explain configuration precedence"
 ```
 
 Run with TOML config and prompt file:
