@@ -216,6 +216,19 @@ Rules:
 - diagnostics include provider capabilities and capability validation results
 - output is written to stderr
 
+### `--log-run-dir`
+
+Optional root directory for per-run observability artifacts.
+
+Rules:
+
+- accepts a filesystem path
+- creates one timestamped run directory per execution
+- writes sanitized `request.json` for every run
+- writes `response.json` on success
+- writes `error.json` on runtime failure
+- never writes raw API keys
+
 ### `--temperature`
 
 Optional runtime temperature forwarded to provider generation payloads.
@@ -313,14 +326,14 @@ The CLI uses stable exit codes:
 
 ## Runtime Error Categories
 
-Typical runtime failures include:
+Normalized runtime error taxonomy:
 
-- invalid provider configuration
-- strict capability validation failures
-- missing endpoint or API key
-- network request failures
-- provider HTTP errors
-- output write failures
+- `auth_error`: authentication/authorization failures (for example HTTP 401/403)
+- `rate_limit`: upstream rate limiting (for example HTTP 429)
+- `timeout`: timeout failures
+- `invalid_request`: invalid runtime/provider request (configuration, invalid 4xx request shape)
+- `network_error`: transport/connectivity failures (DNS/TLS/connection reset/proxy)
+- `provider_error`: fallback provider/runtime errors
 
 These failures result in exit code `1`.
 
@@ -420,6 +433,16 @@ ai-prompt-runner \
   --api-key "$AI_API_KEY" \
   --dry-run \
   --print-effective-config
+```
+
+Run with per-run observability artifacts:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --log-run-dir logs \
+  --prompt "Explain capability validation behavior"
 ```
 
 Run with runtime controls:

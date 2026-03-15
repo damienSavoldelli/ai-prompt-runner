@@ -49,6 +49,8 @@ Explore the full project overview, roadmap and methodology here:
 - [Streaming (--stream)](#streaming---stream)
 - [Runtime Controls](#runtime-controls)
 - [Safety Modes](#safety-modes)
+- [Execution Logs (--log-run-dir)](#execution-logs---log-run-dir)
+- [Structured Runtime Errors](#structured-runtime-errors)
 - [Execution Metadata](#execution-metadata)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
@@ -170,6 +172,7 @@ timeout = 30
 retries = 0
 out_json = "outputs/response.json"
 out_md = "outputs/response.md"
+log_run_dir = "logs"
 ```
 
 You can start from [`config.example.toml`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/config.example.toml) and copy it to a local `config.toml` (do not store secrets in this file)
@@ -428,6 +431,57 @@ ai-prompt-runner \
 `--dry-run` does not call provider generation and does not write JSON/Markdown artifacts.
 In dry-run mode, prompt input is optional because execution is preflight-only.
 
+## Execution Logs (--log-run-dir)
+
+Use `--log-run-dir` to persist deterministic per-run diagnostics without changing the final output contract.
+
+Behavior:
+
+- creates one run directory per execution: `run-YYYYmmddTHHMMSSffffffZ`
+- writes sanitized `request.json`
+- writes `response.json` on success
+- writes `error.json` on runtime failure
+- never persists raw API keys
+
+Example:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --log-run-dir logs \
+  --prompt "Explain retry strategy"
+```
+
+Directory shape:
+
+```text
+logs/
+└── run-20260315T101530123456Z/
+    ├── request.json
+    └── response.json
+```
+
+On failure, `response.json` is replaced by `error.json`.
+
+## Structured Runtime Errors
+
+Runtime failures are normalized to stable taxonomy codes:
+
+- `auth_error`
+- `rate_limit`
+- `timeout`
+- `invalid_request`
+- `network_error`
+- `provider_error`
+
+These codes are used for diagnostics payloads (including `error.json` when `--log-run-dir` is enabled).
+Exit code behavior remains unchanged:
+
+- `0`: success
+- `1`: runtime error
+- `2`: usage/validation error
+
 ## Execution Metadata
 
 Every successful JSON output includes stable execution metadata:
@@ -480,6 +534,7 @@ Root/
 │       ├── cli.py
 │       ├── core/
 │       │   ├── errors.py
+│       │   ├── error_taxonomy.py
 │       │   ├── models.py
 │       │   ├── runner.py
 │       │   └── validators.py
