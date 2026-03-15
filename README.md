@@ -45,6 +45,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
 - [Supported Providers](#supported-providers)
+- [System Prompt (--system)](#system-prompt---system)
 - [Streaming (--stream)](#streaming---stream)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
@@ -289,6 +290,29 @@ ai-prompt-runner \
   --api-key "dummy" \
   --prompt "Hello from local Ollama"
 ```
+
+## System Prompt (--system)
+
+Use `--system` to pass optional one-shot instruction context together with `--prompt`.
+
+Example:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --system "You are a strict API architect." \
+  --prompt "Explain retry logic in 5 bullets"
+```
+
+Behavior by provider type:
+
+- role-aware protocol providers (`openai_compatible` aliases, `anthropic`, `google`) map `--system` to native system fields
+- non role-aware providers (`http`, `mock`) use deterministic prompt composition:
+  - `SYSTEM: ...`
+  - `USER: ...`
+
+`--system` does not introduce conversation state; execution remains stateless and single-shot.
 
 ## Streaming (--stream)
 

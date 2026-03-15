@@ -71,6 +71,7 @@ Supported TOML keys:
 CLI-only runtime flag (not supported in env/TOML):
 
 - `--stream`
+- `--system`
 
 Example protocol provider configurations:
 
@@ -103,6 +104,7 @@ Unsupported TOML key:
 
 - `api_key`
 - `stream`
+- `system`
 
 ## Secret Handling
 
@@ -147,6 +149,11 @@ Streaming note:
 
 - `--stream` is intentionally CLI-only so execution intent stays explicit per run.
 - Stream mode changes console rendering only; final JSON/Markdown output contract remains unchanged.
+
+System prompt note:
+
+- `--system` is intentionally CLI-only so one-shot instruction context is explicit per run.
+- It does not introduce conversation history or persistent prompt state.
 
 ## Related Documentation
 

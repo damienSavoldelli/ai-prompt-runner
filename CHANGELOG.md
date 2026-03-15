@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.3.0] - 2026-03-15
+
+### Added
+
+- Added optional CLI flag `--system` to pass one-shot instruction context alongside `--prompt`.
+- Added `system_prompt` support to the execution contract:
+    - `PromptRequest.system_prompt`
+    - `BaseProvider.generate(prompt, system_prompt=None)`
+    - `BaseProvider.generate_stream(prompt, system_prompt=None)`
+- Added provider-level system prompt handling:
+    - OpenAI-compatible providers use a role-aware `system` message
+    - Anthropic provider uses the `system` payload field
+    - Google provider uses `systemInstruction`
+    - HTTP and Mock providers use deterministic fallback prompt composition
+- Added targeted unit and E2E tests for system prompt forwarding and provider branch coverage.
+
+### Changed
+
+- Updated runner orchestration to forward `system_prompt` in both standard and stream execution paths.
+- Kept stream and non-stream final artifact behavior deterministic and contract-compatible.
+
+### Notes
+
+- `v1.3.0` is a stable feature release focused on structured one-shot prompt control.
+- No output JSON schema/contract changes.
+- No CLI breaking changes.
+
 ## [v1.2.1] - 2026-03-15
 
 ### Added
