@@ -1,5 +1,7 @@
 """Google Gemini generateContent provider implementation using requests."""
 
+import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import requests
@@ -41,6 +43,16 @@ class GoogleProvider(BaseProvider):
         """
         base = self.config.endpoint.rstrip("/")
         return f"{base}/{self.config.model}:generateContent"
+
+    def _normalized_stream_endpoint(self) -> str:
+        """
+        Build full streamGenerateContent URL from a base models endpoint.
+
+        Expected form:
+        .../models/{model}:streamGenerateContent?alt=sse
+        """
+        base = self.config.endpoint.rstrip("/")
+        return f"{base}/{self.config.model}:streamGenerateContent?alt=sse"
 
     def _raise_for_mapped_status(self, response: requests.Response) -> None:
         """Map provider HTTP status codes to domain-specific exceptions."""
@@ -98,6 +110,61 @@ class GoogleProvider(BaseProvider):
 
         return text
 
+    def _extract_stream_delta(self, event: dict) -> str | None:
+        """
+        Extract stream text from one Gemini SSE event payload.
+
+        Stream events generally include the same candidates/content/parts shape
+        as non-stream responses, but incrementally.
+        """
+        if not isinstance(event, dict):
+            raise ProviderError("Provider streaming event must be an object.")
+
+        if "error" in event:
+            error_obj = event.get("error")
+            if isinstance(error_obj, dict):
+                message = error_obj.get("message")
+                if isinstance(message, str) and message.strip():
+                    raise ProviderError(f"Provider stream error: {message}")
+            raise ProviderError("Provider stream returned an error event.")
+
+        candidates = event.get("candidates")
+        if candidates is None:
+            return None
+        if not isinstance(candidates, list):
+            raise ProviderError("Provider streaming event must contain list 'candidates'.")
+        if not candidates:
+            return None
+
+        first_candidate = candidates[0]
+        if not isinstance(first_candidate, dict):
+            raise ProviderError("Provider streaming candidate must be an object.")
+
+        content = first_candidate.get("content")
+        if not isinstance(content, dict):
+            raise ProviderError("Provider streaming candidate must contain a 'content' object.")
+
+        parts = content.get("parts")
+        if not isinstance(parts, list):
+            raise ProviderError("Provider streaming content must contain list 'parts'.")
+        if not parts:
+            return None
+
+        text_chunks: list[str] = []
+        for part in parts:
+            if not isinstance(part, dict):
+                raise ProviderError("Provider streaming part must be an object.")
+            text = part.get("text")
+            if text is None:
+                continue
+            if not isinstance(text, str):
+                raise ProviderError("Provider streaming part text must be a string.")
+            text_chunks.append(text)
+
+        if not text_chunks:
+            return None
+        return "".join(text_chunks)
+
     def generate(self, prompt: str) -> str:
         """Send one prompt to Gemini and return generated text."""
         headers = {
@@ -136,6 +203,75 @@ class GoogleProvider(BaseProvider):
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
             return self._extract_text(body)
+
+        # Defensive fallback: loop always returns or raises.
+        raise ProviderError("Provider request failed unexpectedly.")
+
+    def generate_stream(self, prompt: str) -> Iterator[str]:
+        """
+        Stream generated text chunks from Google Gemini.
+
+        Notes:
+        - retries are attempted only while no chunk has been emitted
+        - once chunks are emitted, retrying would duplicate visible output
+        """
+        headers = {
+            "x-goog-api-key": self.config.api_key,
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                    ]
+                }
+            ]
+        }
+
+        for attempt in range(self.config.max_retries + 1):
+            emitted_any_chunk = False
+            try:
+                response = requests.post(
+                    self._normalized_stream_endpoint(),
+                    headers=headers,
+                    json=payload,
+                    timeout=self.config.timeout_seconds,
+                    stream=True,
+                )
+                self._raise_for_mapped_status(response)
+
+                for line in response.iter_lines(decode_unicode=True):
+                    if line is None:
+                        continue
+                    normalized_line = line.strip()
+                    if not normalized_line:
+                        continue
+                    if not normalized_line.startswith("data:"):
+                        continue
+
+                    data_value = normalized_line[len("data:") :].strip()
+                    if data_value == "[DONE]":
+                        return
+
+                    try:
+                        event = json.loads(data_value)
+                    except json.JSONDecodeError as exc:
+                        raise ProviderError(
+                            "Provider returned invalid streaming event JSON."
+                        ) from exc
+
+                    delta_text = self._extract_stream_delta(event)
+                    if delta_text is None:
+                        continue
+
+                    emitted_any_chunk = True
+                    yield delta_text
+                return
+            except requests.RequestException as exc:
+                if emitted_any_chunk or attempt == self.config.max_retries:
+                    raise ProviderError(f"Provider request failed: {exc}") from exc
+                continue
 
         # Defensive fallback: loop always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
