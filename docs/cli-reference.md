@@ -280,6 +280,18 @@ JSON metadata always includes:
 - `metadata.provider`
 - `metadata.timestamp_utc`
 - `metadata.execution_ms`
+- `metadata.model`
+- `metadata.execution_context`
+
+`metadata.execution_context` always includes:
+
+- `provider_protocol`
+- `api_endpoint`
+- `model_requested`
+- `model_resolved`
+- `runner_version`
+- `prompt_hash` (`sha256:<hex>`)
+- `runtime` snapshot (`stream`, `system_prompt_provided`, controls, timeout, retries)
 
 JSON metadata may additionally include:
 

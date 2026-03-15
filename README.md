@@ -431,17 +431,31 @@ In dry-run mode, prompt input is optional because execution is preflight-only.
 
 ## Execution Metadata
 
-Every successful JSON output now includes runtime execution timing:
+Every successful JSON output includes stable execution metadata:
 
+- `metadata.provider`
+- `metadata.timestamp_utc`
 - `metadata.execution_ms` (integer, non-negative)
+- `metadata.model` (resolved model when available, otherwise requested model)
+- `metadata.execution_context` (execution provenance snapshot)
 
-Providers that expose usage counters also include:
+`metadata.execution_context` includes:
+
+- `provider_protocol`
+- `api_endpoint`
+- `model_requested`
+- `model_resolved`
+- `runner_version`
+- `prompt_hash` (`sha256:<hex>`)
+- `runtime` snapshot (`stream`, `system_prompt_provided`, runtime controls, timeout, retries)
+
+Providers that expose usage counters also include optional:
 
 - `metadata.usage.prompt_tokens`
 - `metadata.usage.completion_tokens`
 - `metadata.usage.total_tokens`
 
-`metadata.usage` is optional and appears only when upstream provider usage is available.
+`metadata.usage` remains optional and appears only when upstream provider usage is available.
 
 Custom output paths:
 
@@ -547,6 +561,24 @@ Generated JSON (`outputs/response.json`):
     "provider": "openai",
     "timestamp_utc": "2026-03-15T10:21:11.236575+00:00",
     "execution_ms": 412,
+    "model": "gpt-4o-mini",
+    "execution_context": {
+      "provider_protocol": "openai-compatible",
+      "api_endpoint": "https://api.openai.com/v1",
+      "model_requested": "gpt-4o-mini",
+      "model_resolved": "gpt-4o-mini",
+      "runner_version": "1.6.0",
+      "prompt_hash": "sha256:3a5898f8f9a8c98ef08f2f77ec4d5ffbc5f5f7930fb4780f8114a2abf2ff03f7",
+      "runtime": {
+        "stream": false,
+        "system_prompt_provided": false,
+        "temperature": 0.2,
+        "max_tokens": 512,
+        "top_p": 0.9,
+        "timeout_seconds": 30,
+        "max_retries": 0
+      }
+    },
     "usage": {
       "prompt_tokens": 32,
       "completion_tokens": 41,
