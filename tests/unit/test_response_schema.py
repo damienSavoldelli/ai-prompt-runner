@@ -3,7 +3,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from ai_prompt_runner.core.models import PromptRequest
+from ai_prompt_runner.core.models import GenerationConfig, PromptRequest
 from ai_prompt_runner.core.runner import PromptRunner
 from ai_prompt_runner.services.base import BaseProvider
 
@@ -11,7 +11,12 @@ from ai_prompt_runner.services.base import BaseProvider
 class FakeProvider(BaseProvider):
     """Test double implementing the provider contract without network I/O."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         return f"Echo: {prompt}"
 
 
@@ -107,3 +112,48 @@ def test_response_schema_rejects_unexpected_metadata_field() -> None:
 
     assert len(errors) == 1
     assert errors[0].validator == "additionalProperties"
+
+
+def test_response_schema_rejects_negative_execution_ms() -> None:
+    """Official schema must reject negative execution_ms values."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Echo: Hello",
+        "metadata": {
+            "provider": "fake",
+            "timestamp_utc": "2026-02-28T12:00:00+00:00",
+            "execution_ms": -1,
+        },
+    }
+
+    errors = sorted(
+        _build_validator().iter_errors(payload),
+        key=lambda err: list(err.path),
+    )
+
+    assert len(errors) == 1
+    assert list(errors[0].path) == ["metadata", "execution_ms"]
+
+
+def test_response_schema_accepts_optional_usage_shape() -> None:
+    """Official schema accepts normalized optional usage metadata."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Echo: Hello",
+        "metadata": {
+            "provider": "fake",
+            "timestamp_utc": "2026-02-28T12:00:00+00:00",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30,
+            },
+        },
+    }
+
+    errors = sorted(
+        _build_validator().iter_errors(payload),
+        key=lambda err: list(err.path),
+    )
+
+    assert errors == []

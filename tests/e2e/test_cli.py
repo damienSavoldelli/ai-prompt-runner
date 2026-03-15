@@ -1,6 +1,8 @@
 import pytest
 import json
 import argparse
+import runpy
+import sys
 
 from pathlib import Path
 
@@ -10,12 +12,22 @@ from ai_prompt_runner import cli
 class FakeProvider:
     """E2E test double returning deterministic output."""
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config=None,
+    ) -> str:
         if system_prompt is not None:
             return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str, system_prompt: str | None = None):
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config=None,
+    ):
         """Stream deterministic chunks to exercise CLI streaming behavior."""
         if system_prompt is not None:
             for char in f"Echo: SYSTEM={system_prompt} | USER={prompt}":
@@ -107,8 +119,11 @@ def test_cli_main_forwards_timeout_and_retries_to_provider_factory(monkeypatch, 
     assert captured["max_retries"] == 2
 
 
-def test_cli_main_forwards_system_prompt_to_runner(monkeypatch, tmp_path: Path) -> None:
-    """Forward --system value into PromptRequest before runner execution."""
+def test_cli_main_forwards_system_and_runtime_controls_to_runner(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Forward --system and runtime controls into PromptRequest before runner execution."""
     captured: dict = {}
 
     class FakeRunner:
@@ -117,12 +132,16 @@ def test_cli_main_forwards_system_prompt_to_runner(monkeypatch, tmp_path: Path) 
 
         def run(self, request, on_stream_chunk=None):
             captured["system_prompt"] = request.system_prompt
+            captured["temperature"] = request.temperature
+            captured["max_tokens"] = request.max_tokens
+            captured["top_p"] = request.top_p
             return {
                 "prompt": request.prompt_text,
                 "response": f"Echo: {request.prompt_text}",
                 "metadata": {
                     "provider": request.provider,
                     "timestamp_utc": "2026-01-01T00:00:00+00:00",
+                    "execution_ms": 1,
                 },
             }
 
@@ -140,6 +159,12 @@ def test_cli_main_forwards_system_prompt_to_runner(monkeypatch, tmp_path: Path) 
             "http",
             "--system",
             "You are strict.",
+            "--temperature",
+            "0.2",
+            "--max-tokens",
+            "120",
+            "--top-p",
+            "0.95",
             "--out-json",
             str(out_json),
             "--out-md",
@@ -149,6 +174,9 @@ def test_cli_main_forwards_system_prompt_to_runner(monkeypatch, tmp_path: Path) 
 
     assert exit_code == 0
     assert captured["system_prompt"] == "You are strict."
+    assert captured["temperature"] == 0.2
+    assert captured["max_tokens"] == 120
+    assert captured["top_p"] == 0.95
 
 
 def test_cli_rejects_blank_prompt() -> None:
@@ -244,6 +272,36 @@ def test_positive_int_rejects_zero() -> None:
     """Reject zero timeout values in the CLI validator."""
     with pytest.raises(argparse.ArgumentTypeError, match="timeout must be a positive integer"):
         cli._positive_int("0")
+
+
+def test_non_negative_float_rejects_non_float() -> None:
+    """Reject non-float temperature values in the CLI validator."""
+    with pytest.raises(argparse.ArgumentTypeError, match="temperature must be a float"):
+        cli._non_negative_float("abc")
+
+
+def test_non_negative_float_rejects_negative_value() -> None:
+    """Reject negative temperature values in the CLI validator."""
+    with pytest.raises(
+        argparse.ArgumentTypeError,
+        match="temperature must be greater than or equal to 0",
+    ):
+        cli._non_negative_float("-0.1")
+
+
+def test_top_p_float_rejects_invalid_range() -> None:
+    """Reject out-of-range top-p values in the CLI validator."""
+    with pytest.raises(
+        argparse.ArgumentTypeError,
+        match="top-p must be greater than 0 and less than or equal to 1",
+    ):
+        cli._top_p_float("1.2")
+
+
+def test_top_p_float_rejects_non_float() -> None:
+    """Reject non-float top-p values in the CLI validator."""
+    with pytest.raises(argparse.ArgumentTypeError, match="top-p must be a float"):
+        cli._top_p_float("abc")
 
 
 def test_http_url_rejects_blank_value() -> None:
@@ -485,6 +543,9 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     assert "--prompt-file" in captured.out
     assert "--system" in captured.out
     assert "--stream" in captured.out
+    assert "--temperature" in captured.out
+    assert "--max-tokens" in captured.out
+    assert "--top-p" in captured.out
     assert "--config" in captured.out
     assert "piped stdin" in captured.out
     assert "Exit codes:" in captured.out
@@ -663,8 +724,41 @@ def test_merge_runtime_config_rejects_non_mapping_config() -> None:
 
     with pytest.raises(argparse.ArgumentTypeError, match="config must resolve to a mapping"):
         cli._merge_runtime_config(args)
-        
-        
+
+
+def test_merge_runtime_config_validates_generation_controls_from_config() -> None:
+    """
+    Validate generation controls loaded from TOML with the same validators as CLI.
+    """
+    args = argparse.Namespace(
+        prompt=None,
+        prompt_file=None,
+        system=None,
+        provider=None,
+        config={
+            "temperature": "0.2",
+            "max_tokens": "120",
+            "top_p": "0.95",
+        },
+        api_endpoint=None,
+        api_key=None,
+        api_model=None,
+        out_json=None,
+        out_md=None,
+        stream=False,
+        timeout=None,
+        retries=None,
+        temperature=None,
+        max_tokens=None,
+        top_p=None,
+    )
+
+    merged = cli._merge_runtime_config(args)
+    assert merged.temperature == 0.2
+    assert merged.max_tokens == 120
+    assert merged.top_p == 0.95
+
+
 def test_load_config_file_rejects_non_mapping_root(monkeypatch, tmp_path: Path) -> None:
     """Reject a TOML payload whose parsed root is not a mapping."""
     config_file = tmp_path / "config.toml"
@@ -740,3 +834,15 @@ def test_cli_stream_falls_back_to_generate_when_provider_has_no_stream(
     assert exit_code == 0
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["response"] == "Echo: Hello Fallback"
+
+
+def test_cli_module_entrypoint_executes_main_guard(monkeypatch) -> None:
+    """Execute module as __main__ to cover the script entrypoint guard."""
+    # Ensure module execution does not inherit pytest arguments.
+    monkeypatch.setattr(sys, "argv", ["ai-prompt-runner"])
+    sys.modules.pop("ai_prompt_runner.cli", None)
+
+    with pytest.raises(SystemExit) as exc_info:
+        runpy.run_module("ai_prompt_runner.cli", run_name="__main__")
+
+    assert exc_info.value.code == 2

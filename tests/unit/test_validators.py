@@ -12,6 +12,7 @@ def test_validate_response_payload_accepts_valid_payload() -> None:
         "metadata": {
             "provider": "http",
             "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "execution_ms": 42,
         },
     }
 
@@ -118,4 +119,134 @@ def test_validate_response_payload_rejects_non_string_metadata_timestamp() -> No
     }
 
     with pytest.raises(ValidationError, match="'metadata.timestamp_utc' must be a string."):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_non_integer_execution_ms() -> None:
+    """Reject payloads where metadata.execution_ms is not an integer."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "execution_ms": "42",
+        },
+    }
+
+    with pytest.raises(ValidationError, match="'metadata.execution_ms' must be an integer."):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_negative_execution_ms() -> None:
+    """Reject payloads where metadata.execution_ms is negative."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "execution_ms": -1,
+        },
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="'metadata.execution_ms' must be greater than or equal to 0.",
+    ):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_accepts_optional_usage_object() -> None:
+    """Accept normalized usage metadata when token counts are valid integers."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30,
+            },
+        },
+    }
+
+    validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_non_object_usage() -> None:
+    """Reject payloads where metadata.usage is not an object."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "usage": "invalid",
+        },
+    }
+
+    with pytest.raises(ValidationError, match="'metadata.usage' must be an object."):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_unknown_usage_key() -> None:
+    """Reject payloads where metadata.usage includes unsupported keys."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "usage": {
+                "cached_tokens": 1,
+            },
+        },
+    }
+
+    with pytest.raises(ValidationError, match="Unsupported usage keys"):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_non_integer_usage_value() -> None:
+    """Reject payloads where a usage counter is not an integer."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "usage": {
+                "prompt_tokens": "10",
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="'metadata.usage.prompt_tokens' must be an integer.",
+    ):
+        validate_response_payload(payload)
+
+
+def test_validate_response_payload_rejects_negative_usage_value() -> None:
+    """Reject payloads where a usage counter is negative."""
+    payload = {
+        "prompt": "Hello",
+        "response": "Hi there",
+        "metadata": {
+            "provider": "http",
+            "timestamp_utc": "2026-02-18T10:00:00+00:00",
+            "usage": {
+                "total_tokens": -1,
+            },
+        },
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="'metadata.usage.total_tokens' must be greater than or equal to 0.",
+    ):
         validate_response_payload(payload)
