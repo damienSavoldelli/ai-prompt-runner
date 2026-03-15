@@ -215,6 +215,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_app_version()}")
     parser.add_argument("--out-json", default=None, help="JSON output path.")
     parser.add_argument("--out-md", default=None, help="Markdown output path.")
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Stream response chunks to stdout when supported by the provider.",
+    )
     parser.add_argument("--timeout",type=_positive_int,default=None,help="HTTP timeout in seconds (must be > 0).")
     parser.add_argument( "--retries", type=_non_negative_int, default=None, help="Maximum retry attempts on network errors (must be >= 0).")
     return parser
@@ -253,13 +258,24 @@ def main(argv: list[str] | None = None) -> int:
 
     runner = PromptRunner(provider=provider)
 
+    def _print_stream_chunk(chunk: str) -> None:
+        """Render stream chunks progressively without buffering delays."""
+        print(chunk, end="", flush=True)
+
     try:
         payload = runner.run(
             PromptRequest(
                 prompt_text=prompt_text,
                 provider=args.provider,
+                stream=args.stream,
             )
+            ,
+            on_stream_chunk=_print_stream_chunk if args.stream else None,
         )
+
+        # Keep streamed token output readable and separate from final JSON payload.
+        if args.stream:
+            print()
 
         write_json(Path(args.out_json), payload)
         write_markdown(Path(args.out_md), payload)

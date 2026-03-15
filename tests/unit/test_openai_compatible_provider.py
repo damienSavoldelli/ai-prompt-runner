@@ -25,6 +25,19 @@ class DummyResponse:
         return self._payload
 
 
+class DummyStreamResponse:
+    """Small test double for streaming `iter_lines` behavior."""
+
+    def __init__(self, lines: list[str | None], status_code: int = 200) -> None:
+        self._lines = lines
+        self.status_code = status_code
+
+    def iter_lines(self, decode_unicode: bool = True):
+        assert decode_unicode is True
+        for line in self._lines:
+            yield line
+
+
 def _make_provider(
     *,
     endpoint: str = "https://api.openai.com/v1",
@@ -290,3 +303,311 @@ def test_generate_defensive_fallback_on_invalid_retry_config() -> None:
 
     with pytest.raises(ProviderError, match="Provider request failed unexpectedly."):
         provider.generate("hello")
+
+
+def test_generate_stream_yields_chunks_and_enables_stream_flag(monkeypatch) -> None:
+    """Stream mode must emit chunks from SSE events and send stream=true in payload."""
+    provider = _make_provider(endpoint="https://api.openai.com/v1")
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["url"] = url
+        observed["json"] = json
+        observed["stream"] = stream
+        observed["timeout"] = timeout
+        return DummyStreamResponse(
+            [
+                'data: {"choices":[{"delta":{"content":"Echo: "}}]}',
+                'data: {"choices":[{"delta":{"content":"hello"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        fake_post,
+    )
+
+    chunks = list(provider.generate_stream("hello"))
+    assert chunks == ["Echo: ", "hello"]
+    assert observed["url"] == "https://api.openai.com/v1/chat/completions"
+    assert observed["json"]["stream"] is True
+    assert observed["stream"] is True
+    assert observed["timeout"] == 5
+
+
+def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:
+    """Parser should skip blank lines and SSE lines that are not `data:` payloads."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                "",
+                "event: message",
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_ignores_delta_events_without_content(monkeypatch) -> None:
+    """Delta events without content are valid and should be ignored."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_rejects_invalid_event_json(monkeypatch) -> None:
+    """Invalid JSON in a stream event must raise ProviderError."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ["data: {not-json}", "data: [DONE]"],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(ProviderError, match="Provider returned invalid streaming event JSON."):
+        list(provider.generate_stream("hello"))
+
+
+def test_generate_stream_retries_then_succeeds(monkeypatch) -> None:
+    """Stream should retry transient transport failures before first emitted chunk."""
+    provider = _make_provider(max_retries=2)
+    calls = {"count": 0}
+
+    def fake_post(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise requests.ConnectionError("temporary network error")
+        return DummyStreamResponse(
+            [
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        fake_post,
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+    assert calls["count"] == 3
+
+
+def test_generate_stream_fails_after_retry_exhausted(monkeypatch) -> None:
+    """Exhausted stream retries should raise a ProviderError with clear context."""
+    provider = _make_provider(max_retries=1)
+    calls = {"count": 0}
+
+    def fake_post(*args, **kwargs):
+        calls["count"] += 1
+        raise requests.Timeout("timed out")
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        fake_post,
+    )
+
+    with pytest.raises(ProviderError, match="Provider request failed"):
+        list(provider.generate_stream("hello"))
+
+    assert calls["count"] == 2
+
+
+def test_generate_stream_ignores_event_without_choices(monkeypatch) -> None:
+    """Events without `choices` are allowed and should be ignored."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"event":"ping"}',
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_rejects_non_list_choices(monkeypatch) -> None:
+    """Streaming event `choices` must be a list when present."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: {"choices":"invalid"}'],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider streaming event must contain list 'choices'.",
+    ):
+        list(provider.generate_stream("hello"))
+
+
+def test_generate_stream_ignores_empty_choices(monkeypatch) -> None:
+    """Empty choices arrays are allowed and should be ignored."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"choices":[]}',
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_rejects_non_object_choice(monkeypatch) -> None:
+    """The first streaming choice must be an object."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: {"choices":[123]}'],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider streaming choice must be an object.",
+    ):
+        list(provider.generate_stream("hello"))
+
+
+def test_generate_stream_ignores_event_without_delta(monkeypatch) -> None:
+    """Streaming choices without `delta` should be ignored."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"choices":[{"message":{"content":"ignore"}}]}',
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_rejects_non_object_delta(monkeypatch) -> None:
+    """When present, `delta` must be an object."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: {"choices":[{"delta":"invalid"}]}'],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider streaming choice must contain object 'delta'.",
+    ):
+        list(provider.generate_stream("hello"))
+
+
+def test_generate_stream_rejects_non_string_delta_content(monkeypatch) -> None:
+    """Delta content must be text when provided."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: {"choices":[{"delta":{"content":123}}]}'],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider streaming delta 'content' must be a string.",
+    ):
+        list(provider.generate_stream("hello"))
+
+
+def test_generate_stream_handles_none_lines(monkeypatch) -> None:
+    """A None line from iter_lines should be skipped safely."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                None,
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_returns_when_stream_ends_without_done(monkeypatch) -> None:
+    """Provider should return cleanly when stream ends without an explicit [DONE]."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: {"choices":[{"delta":{"content":"ok"}}]}'],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_defensive_fallback_on_invalid_retry_config() -> None:
+    """Defensive branch: negative max_retries should hit fallback ProviderError."""
+    provider = _make_provider(max_retries=-1)
+
+    with pytest.raises(ProviderError, match="Provider request failed unexpectedly."):
+        list(provider.generate_stream("hello"))

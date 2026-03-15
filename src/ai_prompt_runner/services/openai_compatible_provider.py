@@ -1,5 +1,7 @@
 """OpenAI-compatible provider porvider implementation using requests."""
 
+import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import requests
@@ -105,6 +107,40 @@ class OpenAICompatibleProvider(BaseProvider):
 
         return content
 
+    def _extract_stream_delta(self, event: dict) -> str | None:
+        """
+        Extract a stream text delta from one SSE `data:` event payload.
+
+        OpenAI-compatible stream events commonly include:
+        {"choices": [{"delta": {"content": "..."}}]}
+        """
+        choices = event.get("choices")
+        if choices is None:
+            # Some providers may emit side-channel events without choices.
+            return None
+        if not isinstance(choices, list):
+            raise ProviderError("Provider streaming event must contain list 'choices'.")
+        if not choices:
+            return None
+
+        first = choices[0]
+        if not isinstance(first, dict):
+            raise ProviderError("Provider streaming choice must be an object.")
+
+        delta = first.get("delta")
+        if delta is None:
+            return None
+        if not isinstance(delta, dict):
+            raise ProviderError("Provider streaming choice must contain object 'delta'.")
+
+        content = delta.get("content")
+        if content is None:
+            return None
+        if not isinstance(content, str):
+            raise ProviderError("Provider streaming delta 'content' must be a string.")
+
+        return content
+
     def generate(self, prompt: str) -> str:
         """
         Send a single prompt and return generated text.
@@ -144,4 +180,69 @@ class OpenAICompatibleProvider(BaseProvider):
             return self._extract_text(body)
 
         # Defensive fallback: the loop above always returns or raises.
+        raise ProviderError("Provider request failed unexpectedly.")
+
+    def generate_stream(self, prompt: str) -> Iterator[str]:
+        """
+        Stream generated text chunks from an OpenAI-compatible provider.
+
+        Notes:
+        - retries are attempted only when no chunk has been emitted yet
+        - once chunks are emitted, retrying would duplicate visible output
+        """
+        headers = {
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.config.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
+
+        for attempt in range(self.config.max_retries + 1):
+            emitted_any_chunk = False
+            try:
+                response = requests.post(
+                    self._normalized_endpoint(),
+                    headers=headers,
+                    json=payload,
+                    timeout=self.config.timeout_seconds,
+                    stream=True,
+                )
+                self._raise_for_mapped_status(response)
+
+                for line in response.iter_lines(decode_unicode=True):
+                    if line is None:
+                        continue
+                    normalized_line = line.strip()
+                    if not normalized_line:
+                        continue
+                    if not normalized_line.startswith("data:"):
+                        continue
+
+                    data_value = normalized_line[len("data:") :].strip()
+                    if data_value == "[DONE]":
+                        return
+
+                    try:
+                        event = json.loads(data_value)
+                    except json.JSONDecodeError as exc:
+                        raise ProviderError(
+                            "Provider returned invalid streaming event JSON."
+                        ) from exc
+
+                    delta_text = self._extract_stream_delta(event)
+                    if delta_text is None:
+                        continue
+
+                    emitted_any_chunk = True
+                    yield delta_text
+                return
+            except requests.RequestException as exc:
+                if emitted_any_chunk or attempt == self.config.max_retries:
+                    raise ProviderError(f"Provider request failed: {exc}") from exc
+                continue
+
+        # Defensive fallback: loop always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
