@@ -90,6 +90,27 @@ def test_generate_returns_text_and_normalizes_endpoint(monkeypatch) -> None:
     assert observed["timeout"] == 5
 
 
+def test_generate_includes_system_instruction_when_provided(monkeypatch) -> None:
+    """System prompt must be mapped to Gemini `systemInstruction` payload."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout):
+        observed["payload"] = json
+        return DummyResponse(
+            {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        fake_post,
+    )
+
+    assert provider.generate("hello", system_prompt="You are strict.") == "ok"
+    assert observed["payload"]["systemInstruction"]["parts"][0]["text"] == "You are strict."
+
+
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
     """Transient transport errors should be retried up to max_retries."""
     provider = _make_provider(max_retries=2)
@@ -347,6 +368,30 @@ def test_generate_stream_yields_chunks_and_uses_stream_endpoint(monkeypatch) -> 
     )
     assert observed["stream"] is True
     assert observed["timeout"] == 5
+
+
+def test_generate_stream_includes_system_instruction_when_provided(monkeypatch) -> None:
+    """Stream payload must include Gemini `systemInstruction` when provided."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["payload"] = json
+        return DummyStreamResponse(
+            [
+                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        fake_post,
+    )
+
+    assert list(provider.generate_stream("hello", system_prompt="You are strict.")) == ["ok"]
+    assert observed["payload"]["systemInstruction"]["parts"][0]["text"] == "You are strict."
 
 
 def test_generate_stream_joins_multiple_text_parts(monkeypatch) -> None:
