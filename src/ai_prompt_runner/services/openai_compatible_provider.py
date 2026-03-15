@@ -13,7 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
-from ai_prompt_runner.core.models import GenerationConfig
+from ai_prompt_runner.core.models import GenerationConfig, UsageMetadata
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -46,6 +46,7 @@ class OpenAICompatibleProvider(BaseProvider):
 
     def __init__(self, config: OpenAICompatibleProviderConfig) -> None:
         self.config = config
+        self._last_usage: UsageMetadata | None = None
 
     def _normalized_endpoint(self) -> str:
         """
@@ -115,6 +116,9 @@ class OpenAICompatibleProvider(BaseProvider):
         OpenAI-compatible stream events commonly include:
         {"choices": [{"delta": {"content": "..."}}]}
         """
+        if not isinstance(event, dict):
+            raise ProviderError("Provider streaming event must be an object.")
+
         choices = event.get("choices")
         if choices is None:
             # Some providers may emit side-channel events without choices.
@@ -142,6 +146,28 @@ class OpenAICompatibleProvider(BaseProvider):
 
         return content
 
+    def _extract_usage(self, payload: dict) -> UsageMetadata | None:
+        """Normalize OpenAI-compatible usage payload when present."""
+        if not isinstance(payload, dict):
+            return None
+        usage_obj = payload.get("usage")
+        if not isinstance(usage_obj, dict):
+            return None
+
+        prompt_tokens = usage_obj.get("prompt_tokens")
+        completion_tokens = usage_obj.get("completion_tokens")
+        total_tokens = usage_obj.get("total_tokens")
+
+        return UsageMetadata(
+            prompt_tokens=prompt_tokens if isinstance(prompt_tokens, int) else None,
+            completion_tokens=completion_tokens if isinstance(completion_tokens, int) else None,
+            total_tokens=total_tokens if isinstance(total_tokens, int) else None,
+        )
+
+    def get_last_usage(self) -> UsageMetadata | None:
+        """Expose normalized usage captured during the last provider call."""
+        return self._last_usage
+
     def generate(
         self,
         prompt: str,
@@ -166,6 +192,15 @@ class OpenAICompatibleProvider(BaseProvider):
             "model": self.config.model,
             "messages": messages,
         }
+        if generation_config is not None:
+            if generation_config.temperature is not None:
+                payload["temperature"] = generation_config.temperature
+            if generation_config.max_tokens is not None:
+                payload["max_tokens"] = generation_config.max_tokens
+            if generation_config.top_p is not None:
+                payload["top_p"] = generation_config.top_p
+
+        self._last_usage = None
 
         # Retry only transient transport errors. Deterministic HTTP responses are handled directly.
         for attempt in range(self.config.max_retries + 1):
@@ -188,6 +223,7 @@ class OpenAICompatibleProvider(BaseProvider):
             except ValueError as exc:
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
+            self._last_usage = self._extract_usage(body)
             return self._extract_text(body)
 
         # Defensive fallback: the loop above always returns or raises.
@@ -219,7 +255,18 @@ class OpenAICompatibleProvider(BaseProvider):
             "model": self.config.model,
             "messages": messages,
             "stream": True,
+            # Ask OpenAI-compatible APIs to include final usage counters in stream events.
+            "stream_options": {"include_usage": True},
         }
+        if generation_config is not None:
+            if generation_config.temperature is not None:
+                payload["temperature"] = generation_config.temperature
+            if generation_config.max_tokens is not None:
+                payload["max_tokens"] = generation_config.max_tokens
+            if generation_config.top_p is not None:
+                payload["top_p"] = generation_config.top_p
+
+        self._last_usage = None
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False
@@ -252,6 +299,11 @@ class OpenAICompatibleProvider(BaseProvider):
                         raise ProviderError(
                             "Provider returned invalid streaming event JSON."
                         ) from exc
+
+                    # Usage often arrives on a final event without content delta.
+                    event_usage = self._extract_usage(event)
+                    if event_usage is not None:
+                        self._last_usage = event_usage
 
                     delta_text = self._extract_stream_delta(event)
                     if delta_text is None:

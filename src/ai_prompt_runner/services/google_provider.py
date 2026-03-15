@@ -13,7 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
-from ai_prompt_runner.core.models import GenerationConfig
+from ai_prompt_runner.core.models import GenerationConfig, UsageMetadata
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -33,6 +33,7 @@ class GoogleProvider(BaseProvider):
 
     def __init__(self, config: GoogleProviderConfig) -> None:
         self.config = config
+        self._last_usage: UsageMetadata | None = None
 
     def _normalized_endpoint(self) -> str:
         """
@@ -166,6 +167,38 @@ class GoogleProvider(BaseProvider):
             return None
         return "".join(text_chunks)
 
+    def _extract_usage(self, payload: dict) -> UsageMetadata | None:
+        """
+        Normalize Gemini `usageMetadata` to project-wide usage metadata.
+
+        Expected keys (when present):
+        - promptTokenCount
+        - candidatesTokenCount
+        - totalTokenCount
+        """
+        if not isinstance(payload, dict):
+            return None
+
+        usage_obj = payload.get("usageMetadata")
+        if not isinstance(usage_obj, dict):
+            return None
+
+        prompt_tokens_raw = usage_obj.get("promptTokenCount")
+        completion_tokens_raw = usage_obj.get("candidatesTokenCount")
+        total_tokens_raw = usage_obj.get("totalTokenCount")
+
+        return UsageMetadata(
+            prompt_tokens=prompt_tokens_raw if isinstance(prompt_tokens_raw, int) else None,
+            completion_tokens=(
+                completion_tokens_raw if isinstance(completion_tokens_raw, int) else None
+            ),
+            total_tokens=total_tokens_raw if isinstance(total_tokens_raw, int) else None,
+        )
+
+    def get_last_usage(self) -> UsageMetadata | None:
+        """Expose normalized usage captured during the last provider call."""
+        return self._last_usage
+
     def generate(
         self,
         prompt: str,
@@ -190,6 +223,18 @@ class GoogleProvider(BaseProvider):
             payload["systemInstruction"] = {
                 "parts": [{"text": system_prompt}],
             }
+        if generation_config is not None:
+            generation_payload: dict[str, float | int] = {}
+            if generation_config.temperature is not None:
+                generation_payload["temperature"] = generation_config.temperature
+            if generation_config.max_tokens is not None:
+                generation_payload["maxOutputTokens"] = generation_config.max_tokens
+            if generation_config.top_p is not None:
+                generation_payload["topP"] = generation_config.top_p
+            if generation_payload:
+                payload["generationConfig"] = generation_payload
+
+        self._last_usage = None
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -212,6 +257,7 @@ class GoogleProvider(BaseProvider):
             except ValueError as exc:
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
+            self._last_usage = self._extract_usage(body)
             return self._extract_text(body)
 
         # Defensive fallback: loop always returns or raises.
@@ -247,6 +293,18 @@ class GoogleProvider(BaseProvider):
             payload["systemInstruction"] = {
                 "parts": [{"text": system_prompt}],
             }
+        if generation_config is not None:
+            generation_payload: dict[str, float | int] = {}
+            if generation_config.temperature is not None:
+                generation_payload["temperature"] = generation_config.temperature
+            if generation_config.max_tokens is not None:
+                generation_payload["maxOutputTokens"] = generation_config.max_tokens
+            if generation_config.top_p is not None:
+                generation_payload["topP"] = generation_config.top_p
+            if generation_payload:
+                payload["generationConfig"] = generation_payload
+
+        self._last_usage = None
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False
@@ -279,6 +337,11 @@ class GoogleProvider(BaseProvider):
                         raise ProviderError(
                             "Provider returned invalid streaming event JSON."
                         ) from exc
+
+                    # Usage metadata may appear in stream events without text chunks.
+                    event_usage = self._extract_usage(event)
+                    if event_usage is not None:
+                        self._last_usage = event_usage
 
                     delta_text = self._extract_stream_delta(event)
                     if delta_text is None:

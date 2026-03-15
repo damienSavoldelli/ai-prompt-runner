@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 
-from ai_prompt_runner.core.models import GenerationConfig
+from ai_prompt_runner.core.models import GenerationConfig, UsageMetadata
 
 
 class BaseProvider(ABC):
@@ -45,3 +45,13 @@ class BaseProvider(ABC):
         behavior so callers can explicitly fallback to non-stream execution.
         """
         raise NotImplementedError("Streaming is not supported by this provider.")
+
+    def get_last_usage(self) -> UsageMetadata | None:
+        """
+        Return normalized usage metadata captured during the last provider call.
+
+        Providers can override this hook when upstream APIs expose token usage.
+        The default returns None to keep compatibility with providers that do
+        not expose usage metrics.
+        """
+        return None
