@@ -53,9 +53,9 @@ The provider layer is built around [`src/ai_prompt_runner/services/base.py`](../
 
 Stable contract:
 
-- providers accept a full prompt string
-- providers return a response string on success through `generate(prompt)`
-- providers may optionally support chunk streaming through `generate_stream(prompt)`
+- providers accept a user prompt string and optional one-shot `system_prompt`
+- providers return a response string on success through `generate(prompt, system_prompt=None)`
+- providers may optionally support chunk streaming through `generate_stream(prompt, system_prompt=None)`
 - providers raise provider-domain errors on failure
 
 Streaming behavior is intentionally optional at provider level. The runner keeps deterministic behavior by:
@@ -138,6 +138,8 @@ The project does not maintain:
 This keeps behavior deterministic and makes the CLI easier to validate, package, and integrate into downstream automation.
 
 In stream mode, the architecture remains stateless: chunks are rendered to stdout for UX, then normalized into a single final response payload.
+
+The `--system` input remains single-execution context only; it does not create message history or conversational state.
 
 ## Validation and Quality Boundaries
 

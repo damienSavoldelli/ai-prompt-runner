@@ -62,6 +62,21 @@ Rules:
 - content must not be blank
 - mutually exclusive with `--prompt`
 
+### `--system`
+
+Optional one-shot instruction context sent with the user prompt.
+
+Rules:
+
+- must not be blank when provided
+- stateless: applies only to the current execution
+- does not enable multi-turn conversation behavior
+
+Provider behavior:
+
+- role-aware providers (`openai_compatible` aliases, `anthropic`, `google`) map this to native system fields
+- non role-aware providers (`http`, `mock`) compose deterministic `SYSTEM/USER` prompt text
+
 ### `--provider`
 
 Provider name used for execution.
@@ -218,6 +233,16 @@ ai-prompt-runner \
   --api-endpoint "http://localhost:11434/api/generate" \
   --api-key "dummy" \
   --api-model "llama3.2"
+```
+
+Run with system instruction context:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --system "You are a strict API architect." \
+  --prompt "Explain timeout and retry strategy"
 ```
 
 Run with Anthropic defaults:
