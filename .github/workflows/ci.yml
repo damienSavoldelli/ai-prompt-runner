@@ -36,6 +36,21 @@ jobs:
           test -f dist/ai_prompt_runner-*.tar.gz
           test -f dist/ai_prompt_runner-*.whl
 
+      - name: Smoke install wheel and sdist artifacts
+        run: |
+          WHEEL_PATH="$(find dist -maxdepth 1 -name 'ai_prompt_runner-*.whl' | head -n 1)"
+          SDIST_PATH="$(find dist -maxdepth 1 -name 'ai_prompt_runner-*.tar.gz' | head -n 1)"
+          test -n "$WHEEL_PATH"
+          test -n "$SDIST_PATH"
+
+          python3 -m venv /tmp/ci-artifact-smoke
+          /tmp/ci-artifact-smoke/bin/python -m pip install --upgrade pip
+          /tmp/ci-artifact-smoke/bin/python -m pip install "$WHEEL_PATH"
+          /tmp/ci-artifact-smoke/bin/ai-prompt-runner --version
+
+          /tmp/ci-artifact-smoke/bin/python -m pip install --force-reinstall "$SDIST_PATH"
+          /tmp/ci-artifact-smoke/bin/ai-prompt-runner --version
+
       - name: Run tests with coverage gate
         run: |
           python3 -m pytest \
