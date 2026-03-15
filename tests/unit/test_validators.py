@@ -379,6 +379,32 @@ def test_validate_response_payload_rejects_missing_execution_context_keys() -> N
         validate_response_payload(payload)
 
 
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("provider_protocol", 123),
+        ("api_endpoint", 123),
+        ("model_requested", 123),
+        ("model_resolved", 123),
+    ],
+)
+def test_validate_response_payload_rejects_non_string_execution_context_nullable_fields(
+    field_name: str,
+    field_value,
+) -> None:
+    """Reject non-string values for nullable string execution_context fields."""
+    payload = _base_execution_context_payload()
+    payload["metadata"]["execution_context"][field_name] = field_value
+
+    with pytest.raises(
+        ValidationError,
+        match=(
+            f"'metadata.execution_context.{field_name}' must be a string or null."
+        ),
+    ):
+        validate_response_payload(payload)
+
+
 def test_validate_response_payload_rejects_non_string_runner_version() -> None:
     """Reject execution_context runner_version values that are not strings."""
     payload = _base_execution_context_payload()

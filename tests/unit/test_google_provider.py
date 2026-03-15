@@ -174,6 +174,25 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
     assert provider.get_last_model_resolved() == "gemini-2.5-flash-001"
 
 
+def test_generate_extracts_model_resolved_from_model_field(monkeypatch) -> None:
+    """Fallback to top-level `model` when `modelVersion` is absent."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(
+            {
+                "model": "gemini-2.5-flash-fallback",
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+            },
+            status_code=200,
+        ),
+    )
+
+    assert provider.generate("hello") == "ok"
+    assert provider.get_last_model_resolved() == "gemini-2.5-flash-fallback"
+
+
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
     """Transient transport errors should be retried up to max_retries."""
     provider = _make_provider(max_retries=2)
