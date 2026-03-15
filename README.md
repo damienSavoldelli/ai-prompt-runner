@@ -45,6 +45,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
 - [Supported Providers](#supported-providers)
+- [Streaming (--stream)](#streaming---stream)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
 - [Technical Docs](#technical-docs)
@@ -288,6 +289,33 @@ ai-prompt-runner \
   --api-key "dummy" \
   --prompt "Hello from local Ollama"
 ```
+
+## Streaming (--stream)
+
+Use `--stream` to print response chunks progressively when the selected provider supports streaming.
+
+Streaming-capable providers:
+
+- `openai_compatible` and all OpenAI-compatible aliases (`openai`, `openrouter`, `groq`, `together`, `fireworks`, `perplexity`, `inception`, `x`, `xai`, `lmstudio`, `ollama`)
+- `anthropic`
+- `google`
+- `mock` (test-only deterministic stream)
+
+Non-stream provider behavior:
+
+- `http` falls back to non-stream execution even if `--stream` is set.
+
+Example:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --stream \
+  --prompt "Explain retry strategy"
+```
+
+`--stream` changes console UX only. Final JSON and Markdown outputs still contain the complete final response payload.
 
 Custom output paths:
 

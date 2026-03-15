@@ -68,6 +68,10 @@ Supported TOML keys:
 - `out_json`
 - `out_md`
 
+CLI-only runtime flag (not supported in env/TOML):
+
+- `--stream`
+
 Example protocol provider configurations:
 
 ```toml
@@ -98,6 +102,7 @@ retries = 0
 Unsupported TOML key:
 
 - `api_key`
+- `stream`
 
 ## Secret Handling
 
@@ -137,6 +142,11 @@ Examples:
 - timeout must be greater than `0`
 - retries must be greater than or equal to `0`
 - unsupported TOML keys are rejected
+
+Streaming note:
+
+- `--stream` is intentionally CLI-only so execution intent stays explicit per run.
+- Stream mode changes console rendering only; final JSON/Markdown output contract remains unchanged.
 
 ## Related Documentation
 
