@@ -8,7 +8,12 @@ import requests
 from pathlib import Path
 
 from ai_prompt_runner import cli
-from ai_prompt_runner.core.errors import PromptRunnerError
+from ai_prompt_runner.core.errors import (
+    AuthenticationError,
+    PromptRunnerError,
+    ProviderError,
+    RateLimitError,
+)
 
 
 class FakeProvider:
@@ -1537,27 +1542,76 @@ def test_cli_runner_failure_ignores_log_error_write_oserror(
     assert "Error: runner failed" in captured.err
 
 
+def test_write_run_error_log_uses_runtime_error_normalizer(tmp_path: Path, monkeypatch) -> None:
+    """CLI error artifact writer must delegate payload shaping to taxonomy normalizer."""
+    run_log_dir = tmp_path / "logs"
+    run_log_dir.mkdir()
+
+    calls: dict[str, object] = {}
+
+    class FakePayload:
+        def to_dict(self) -> dict[str, object]:
+            return {
+                "code": "provider_error",
+                "message": "normalized",
+                "provider": "http",
+                "timestamp_utc": "2026-01-01T00:00:00+00:00",
+            }
+
+    def fake_normalize_runtime_error(exc: BaseException, provider: str | None = None) -> FakePayload:
+        calls["exc"] = exc
+        calls["provider"] = provider
+        return FakePayload()
+
+    monkeypatch.setattr(cli, "normalize_runtime_error", fake_normalize_runtime_error)
+
+    source_exc = PromptRunnerError("boom")
+    cli._write_run_error_log(run_log_dir=run_log_dir, exc=source_exc, provider="http")
+
+    payload = json.loads((run_log_dir / "error.json").read_text(encoding="utf-8"))
+    assert payload["error"]["code"] == "provider_error"
+    assert payload["error"]["message"] == "normalized"
+    assert calls["exc"] is source_exc
+    assert calls["provider"] == "http"
+
+
 @pytest.mark.parametrize(
-    ("wrapped_exc", "expected_code"),
+    ("error_case", "expected_code"),
     [
-        (requests.Timeout("timed out"), "timeout"),
-        (requests.ConnectionError("network down"), "network_error"),
+        ("auth", "auth_error"),
+        ("rate_limit", "rate_limit"),
+        ("timeout", "timeout"),
+        ("invalid_request", "invalid_request"),
+        ("network", "network_error"),
+        ("provider", "provider_error"),
     ],
 )
-def test_cli_log_run_dir_classifies_wrapped_transport_failures(
+def test_cli_log_run_dir_classifies_runtime_errors_end_to_end(
     monkeypatch,
     tmp_path: Path,
-    wrapped_exc: BaseException,
+    error_case: str,
     expected_code: str,
 ) -> None:
-    """Structured error taxonomy should classify wrapped transport failures consistently."""
+    """Runtime failure paths should persist the expected normalized taxonomy code."""
 
     class FakeRunner:
         def __init__(self, provider) -> None:
             self.provider = provider
 
         def run(self, request, on_stream_chunk=None):
-            raise PromptRunnerError("provider call failed") from wrapped_exc
+            if error_case == "auth":
+                raise AuthenticationError("bad key")
+            if error_case == "rate_limit":
+                raise RateLimitError("too many requests")
+            if error_case == "invalid_request":
+                raise ProviderError("Provider returned HTTP 400.")
+            if error_case == "provider":
+                raise PromptRunnerError("runner failed")
+            if error_case == "timeout":
+                raise PromptRunnerError("provider call failed") from requests.Timeout("timed out")
+            if error_case == "network":
+                raise PromptRunnerError("provider call failed") from requests.ConnectionError("network down")
+            raise AssertionError(f"Unexpected test case: {error_case}")
 
     monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
@@ -1566,7 +1620,7 @@ def test_cli_log_run_dir_classifies_wrapped_transport_failures(
     exit_code = cli.main(
         [
             "--prompt",
-            "Hello Wrapped Error",
+            "Hello Error Matrix",
             "--provider",
             "http",
             "--log-run-dir",
