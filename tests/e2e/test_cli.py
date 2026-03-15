@@ -3,10 +3,12 @@ import json
 import argparse
 import runpy
 import sys
+import requests
 
 from pathlib import Path
 
 from ai_prompt_runner import cli
+from ai_prompt_runner.core.errors import PromptRunnerError
 
 
 class FakeProvider:
@@ -1533,3 +1535,47 @@ def test_cli_runner_failure_ignores_log_error_write_oserror(
     captured = capsys.readouterr()
     assert exit_code == 1
     assert "Error: runner failed" in captured.err
+
+
+@pytest.mark.parametrize(
+    ("wrapped_exc", "expected_code"),
+    [
+        (requests.Timeout("timed out"), "timeout"),
+        (requests.ConnectionError("network down"), "network_error"),
+    ],
+)
+def test_cli_log_run_dir_classifies_wrapped_transport_failures(
+    monkeypatch,
+    tmp_path: Path,
+    wrapped_exc: BaseException,
+    expected_code: str,
+) -> None:
+    """Structured error taxonomy should classify wrapped transport failures consistently."""
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            raise PromptRunnerError("provider call failed") from wrapped_exc
+
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Wrapped Error",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    assert exit_code == 1
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+    error_payload = json.loads((run_dirs[0] / "error.json").read_text(encoding="utf-8"))
+    assert error_payload["error"]["code"] == expected_code
