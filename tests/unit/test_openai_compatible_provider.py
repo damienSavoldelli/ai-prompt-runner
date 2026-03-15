@@ -8,6 +8,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.openai_compatible_provider import (
     OpenAICompatibleProvider,
     OpenAICompatibleProviderConfig,
@@ -135,6 +136,65 @@ def test_generate_includes_system_message_when_provided(monkeypatch) -> None:
     assert provider.generate("hello", system_prompt="You are strict.") == "ok"
     assert observed["messages"][0] == {"role": "system", "content": "You are strict."}
     assert observed["messages"][1] == {"role": "user", "content": "hello"}
+
+
+def test_generate_includes_runtime_controls_when_provided(monkeypatch) -> None:
+    """Runtime controls should be forwarded to OpenAI-compatible payload keys."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout):
+        observed["payload"] = json
+        return DummyResponse(
+            {"choices": [{"message": {"content": "ok"}}]},
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        fake_post,
+    )
+
+    result = provider.generate(
+        "hello",
+        generation_config=GenerationConfig(
+            temperature=0.2,
+            max_tokens=120,
+            top_p=0.95,
+        ),
+    )
+
+    assert result == "ok"
+    assert observed["payload"]["temperature"] == 0.2
+    assert observed["payload"]["max_tokens"] == 120
+    assert observed["payload"]["top_p"] == 0.95
+
+
+def test_generate_extracts_usage_metadata(monkeypatch) -> None:
+    """Usage counters must be normalized and exposed via provider hook."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(
+            {
+                "choices": [{"message": {"content": "ok"}}],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30,
+                },
+            },
+            status_code=200,
+        ),
+    )
+
+    assert provider.generate("hello") == "ok"
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -384,6 +444,68 @@ def test_generate_stream_includes_system_message_when_provided(monkeypatch) -> N
     assert observed["messages"][1] == {"role": "user", "content": "hello"}
 
 
+def test_generate_stream_includes_runtime_controls_and_stream_options(monkeypatch) -> None:
+    """Stream payload should include runtime controls and usage stream options."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["payload"] = json
+        return DummyStreamResponse(
+            [
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        fake_post,
+    )
+
+    chunks = list(
+        provider.generate_stream(
+            "hello",
+            generation_config=GenerationConfig(
+                temperature=0.2,
+                max_tokens=120,
+                top_p=0.95,
+            ),
+        )
+    )
+
+    assert chunks == ["ok"]
+    assert observed["payload"]["temperature"] == 0.2
+    assert observed["payload"]["max_tokens"] == 120
+    assert observed["payload"]["top_p"] == 0.95
+    assert observed["payload"]["stream_options"] == {"include_usage": True}
+
+
+def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
+    """Usage metadata from stream events should be captured and normalized."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"choices":[{"delta":{"content":"ok"}}]}',
+                'data: {"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
+
+
 def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:
     """Parser should skip blank lines and SSE lines that are not `data:` payloads."""
     provider = _make_provider()
@@ -502,6 +624,22 @@ def test_generate_stream_ignores_event_without_choices(monkeypatch) -> None:
     )
 
     assert list(provider.generate_stream("hello")) == ["ok"]
+
+
+def test_generate_stream_rejects_non_object_event_payload(monkeypatch) -> None:
+    """Each decoded stream event must be an object."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            ['data: ["invalid"]'],
+            status_code=200,
+        ),
+    )
+
+    with pytest.raises(ProviderError, match="Provider streaming event must be an object."):
+        list(provider.generate_stream("hello"))
 
 
 def test_generate_stream_rejects_non_list_choices(monkeypatch) -> None:
