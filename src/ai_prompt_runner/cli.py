@@ -365,57 +365,26 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     prompt_group = parser.add_mutually_exclusive_group(required=False)
-    prompt_group.add_argument( "--prompt", type=_non_blank_text, help="Prompt text to send (mutually exclusive with --prompt-file).")
-    prompt_group.add_argument( "--prompt-file", type=_prompt_file_text, help="Path to a UTF-8 text file containing the prompt (mutually exclusive with --prompt).")
-    parser.add_argument(
-        "--system",
-        type=_non_blank_text,
-        help="Optional one-shot system instruction applied before the prompt.",
-    )
+    prompt_group.add_argument("--prompt", type=_non_blank_text, help="Prompt text to send (mutually exclusive with --prompt-file).")
+    prompt_group.add_argument("--prompt-file", type=_prompt_file_text, help="Path to a UTF-8 text file containing the prompt (mutually exclusive with --prompt).")
+    parser.add_argument("--system", type=_non_blank_text, help="Optional one-shot system instruction applied before the prompt.")
     parser.add_argument("--provider", default=None, help="Provider name (currently: http).")
-    parser.add_argument( "--config", type=_load_config_file, help="Path to a TOML config file (optional; CLI overrides env and config).")
-    parser.add_argument( "--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
+    parser.add_argument("--config", type=_load_config_file, help="Path to a TOML config file (optional; CLI overrides env and config).")
+    parser.add_argument("--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
     parser.add_argument("--api-key", help=f"AI API key (env AI_API_KEY: {key_preview}). Prefer env var in production.")
     parser.add_argument("--api-model", help=f"AI model name (env AI_API_MODEL: {model_preview}).")
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_app_version()}")
     parser.add_argument("--out-json", default=None, help="JSON output path.")
     parser.add_argument("--out-md", default=None, help="Markdown output path.")
-    parser.add_argument("--stream",action="store_true",help="Stream response chunks to stdout when supported by the provider; final JSON/Markdown outputs are still written after completion.")
-    parser.add_argument(
-        "--strict-capabilities",
-        action="store_true",
-        help="Fail when requested options are unsupported or unknown for the selected provider.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate configuration/capabilities and exit without provider execution.",
-    )
-    parser.add_argument(
-        "--print-effective-config",
-        action="store_true",
-        help="Print resolved runtime configuration (with masked secrets).",
-    )
-    parser.add_argument(
-        "--temperature",
-        type=_non_negative_float,
-        default=None,
-        help="Optional generation temperature (float >= 0).",
-    )
-    parser.add_argument(
-        "--max-tokens",
-        type=_positive_int,
-        default=None,
-        help="Optional max token budget for completion (integer > 0).",
-    )
-    parser.add_argument(
-        "--top-p",
-        type=_top_p_float,
-        default=None,
-        help="Optional nucleus sampling value (0 < top-p <= 1).",
-    )
-    parser.add_argument("--timeout",type=_positive_int,default=None,help="HTTP timeout in seconds (must be > 0).")
-    parser.add_argument( "--retries", type=_non_negative_int, default=None, help="Maximum retry attempts on network errors (must be >= 0).")
+    parser.add_argument("--stream", action="store_true", help="Stream response chunks to stdout when supported by the provider; final JSON/Markdown outputs are still written after completion.")
+    parser.add_argument("--strict-capabilities", action="store_true", help="Fail when requested options are unsupported or unknown for the selected provider.")
+    parser.add_argument("--dry-run", action="store_true", help="Validate configuration/capabilities and exit without provider execution.")
+    parser.add_argument("--print-effective-config", action="store_true", help="Print resolved runtime configuration (with masked secrets).")
+    parser.add_argument("--temperature", type=_non_negative_float, default=None, help="Optional generation temperature (float >= 0).")
+    parser.add_argument("--max-tokens", type=_positive_int, default=None, help="Optional max token budget for completion (integer > 0).")
+    parser.add_argument("--top-p", type=_top_p_float, default=None, help="Optional nucleus sampling value (0 < top-p <= 1).")
+    parser.add_argument("--timeout", type=_positive_int, default=None, help="HTTP timeout in seconds (must be > 0).")
+    parser.add_argument("--retries", type=_non_negative_int, default=None, help="Maximum retry attempts on network errors (must be >= 0).")
     return parser
 
 
