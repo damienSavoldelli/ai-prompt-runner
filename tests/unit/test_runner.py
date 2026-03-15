@@ -75,6 +75,36 @@ def test_runner_stream_reconstructs_response_and_emits_chunks() -> None:
     assert payload["response"] == "Echo: Hello"
 
 
+def test_runner_stream_and_non_stream_payloads_match_except_timestamp() -> None:
+    """
+    Stream mode must preserve artifact determinism: the final payload content
+    matches non-stream mode except for runtime timestamp generation.
+    """
+    runner = PromptRunner(provider=FakeProvider())
+
+    non_stream_payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            stream=False,
+        )
+    )
+    stream_payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            stream=True,
+        )
+    )
+
+    # Normalize runtime-generated timestamp so we can assert deterministic
+    # payload equivalence between stream and non-stream execution paths.
+    non_stream_payload["metadata"]["timestamp_utc"] = "<normalized>"
+    stream_payload["metadata"]["timestamp_utc"] = "<normalized>"
+
+    assert stream_payload == non_stream_payload
+
+
 def test_runner_stream_falls_back_when_provider_does_not_support_stream() -> None:
     """Use non-stream generation when provider stream support is unavailable."""
     runner = PromptRunner(provider=FakeNoStreamProvider())
