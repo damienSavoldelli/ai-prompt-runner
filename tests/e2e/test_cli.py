@@ -1196,13 +1196,15 @@ def test_cli_log_run_dir_writes_request_and_response_artifacts(
     assert exit_code == 0
     run_dirs = list(log_root.glob("run-*"))
     assert len(run_dirs) == 1
-    request_payload = json.loads((run_dirs[0] / "request.json").read_text(encoding="utf-8"))
+    request_log_text = (run_dirs[0] / "request.json").read_text(encoding="utf-8")
+    request_payload = json.loads(request_log_text)
     response_payload = json.loads((run_dirs[0] / "response.json").read_text(encoding="utf-8"))
     output_payload = json.loads(out_json.read_text(encoding="utf-8"))
 
     assert request_payload["prompt_hash"].startswith("sha256:")
     assert request_payload["effective_config"]["provider"]["api_key"] == "***set***"
-    assert "super-secret-key" not in json.dumps(request_payload, ensure_ascii=False)
+    assert "Hello Logs" not in request_log_text
+    assert "super-secret-key" not in request_log_text
     assert response_payload == output_payload
 
 
@@ -1243,6 +1245,64 @@ def test_cli_log_run_dir_writes_error_artifact_on_runner_failure(
     assert error_payload["error"]["code"] == "provider_error"
     assert error_payload["error"]["message"] == "runner failed"
     assert error_payload["error"]["provider"] == "http"
+
+
+def test_cli_log_run_dir_sanitizes_secrets_in_error_artifact(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Never persist raw API key values in request/error log artifacts."""
+
+    class FakeProviderWithConfig(FakeProvider):
+        def __init__(self) -> None:
+            self.config = argparse.Namespace(
+                endpoint="https://api.openai.com/v1",
+                api_key="super-secret-key",
+                model="gpt-4o-mini",
+                timeout_seconds=30,
+                max_retries=0,
+            )
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            raise PromptRunnerError("upstream rejected key super-secret-key")
+
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProviderWithConfig())
+
+    log_root = tmp_path / "logs"
+    prompt_text = "Sensitive Prompt 123"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            prompt_text,
+            "--provider",
+            "openai",
+            "--api-key",
+            "super-secret-key",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    assert exit_code == 1
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+
+    request_log_text = (run_dirs[0] / "request.json").read_text(encoding="utf-8")
+    request_payload = json.loads(request_log_text)
+    error_log_text = (run_dirs[0] / "error.json").read_text(encoding="utf-8")
+    error_payload = json.loads(error_log_text)
+
+    assert request_payload["effective_config"]["provider"]["api_key"] == "***set***"
+    assert request_payload["prompt_hash"].startswith("sha256:")
+    assert prompt_text not in request_log_text
+    assert "super-secret-key" not in request_log_text
+    assert "super-secret-key" not in error_log_text
+    assert "***redacted***" in error_payload["error"]["message"]
 
 
 def test_cli_log_run_dir_writes_invalid_request_error_on_strict_capability_failure(

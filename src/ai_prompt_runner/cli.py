@@ -220,15 +220,39 @@ def _write_run_response_log(run_log_dir: Path | None, payload: dict) -> None:
     write_json(run_log_dir / "response.json", payload)
 
 
+def _runtime_secret_candidates(api_key: str | None) -> tuple[str, ...]:
+    """Collect runtime secret values that must never be persisted in logs."""
+    candidates: list[str] = []
+    for value in (api_key, os.getenv("AI_API_KEY", "").strip()):
+        if value:
+            candidates.append(value)
+    # Preserve order while removing duplicates.
+    return tuple(dict.fromkeys(candidates))
+
+
+def _redact_sensitive_text(text: str, secret_values: tuple[str, ...]) -> str:
+    """Redact known secret values from diagnostic text payloads."""
+    redacted = text
+    for secret in secret_values:
+        redacted = redacted.replace(secret, "***redacted***")
+    return redacted
+
+
 def _write_run_error_log(
     run_log_dir: Path | None,
     exc: BaseException,
     provider: str | None,
+    secret_values: tuple[str, ...] = (),
 ) -> None:
     """Write normalized error payload for run diagnostics."""
     if run_log_dir is None:
         return
     error_payload = normalize_runtime_error(exc=exc, provider=provider).to_dict()
+    if secret_values and isinstance(error_payload.get("message"), str):
+        error_payload["message"] = _redact_sensitive_text(
+            str(error_payload["message"]),
+            secret_values=secret_values,
+        )
     write_json(run_log_dir / "error.json", {"error": error_payload})
 
 def _load_config_file(path_value: str) -> dict:
@@ -516,6 +540,8 @@ def main(argv: list[str] | None = None) -> int:
         except argparse.ArgumentTypeError as exc:
             parser.error(str(exc))
 
+    secret_values = _runtime_secret_candidates(args.api_key)
+
     try:
         run_log_dir = _create_run_log_dir(args.log_run_dir)
         _write_run_request_log(
@@ -536,6 +562,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_log_dir=run_log_dir,
                 exc=exc,
                 provider=args.provider,
+                secret_values=secret_values,
             )
         except OSError:
             pass
@@ -552,6 +579,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_log_dir=run_log_dir,
                 exc=ConfigurationError("; ".join(errors)),
                 provider=args.provider,
+                secret_values=secret_values,
             )
         except OSError:
             pass
@@ -575,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_log_dir=run_log_dir,
                 exc=exc,
                 provider=args.provider,
+                secret_values=secret_values,
             )
         except OSError:
             pass
@@ -660,6 +689,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_log_dir=run_log_dir,
                 exc=exc,
                 provider=args.provider,
+                secret_values=secret_values,
             )
         except OSError:
             pass
