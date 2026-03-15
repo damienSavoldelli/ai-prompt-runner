@@ -47,6 +47,8 @@ Explore the full project overview, roadmap and methodology here:
 - [Supported Providers](#supported-providers)
 - [System Prompt (--system)](#system-prompt---system)
 - [Streaming (--stream)](#streaming---stream)
+- [Runtime Controls](#runtime-controls)
+- [Execution Metadata](#execution-metadata)
 - [Project Structure](#project-structure)
 - [Architecture Principles](#architecture-principles)
 - [Technical Docs](#technical-docs)
@@ -160,6 +162,9 @@ Example (`config.toml`):
 provider = "http"
 api_endpoint = "http://localhost:11434/api/generate"
 api_model = "llama3.2"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 out_json = "outputs/response.json"
@@ -175,6 +180,10 @@ Configuration precedence is:
 Security note:
 - `api_key` is intentionally not supported in the TOML config file.
 - Use `AI_API_KEY` (recommended) or `--api-key` for secrets.
+
+Runtime controls:
+- `temperature`, `max_tokens`, and `top_p` are optional and provider-forwarded.
+- If omitted, provider defaults are used.
 
 ## CLI Usage
 
@@ -341,6 +350,44 @@ ai-prompt-runner \
 
 `--stream` changes console UX only. Final JSON and Markdown outputs still contain the complete final response payload.
 
+## Runtime Controls
+
+Use optional runtime controls to tune generation behavior per execution.
+
+Available flags:
+
+- `--temperature` (float `>= 0`)
+- `--max-tokens` (integer `> 0`)
+- `--top-p` (float `> 0` and `<= 1`)
+
+Example:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --temperature 0.2 \
+  --max-tokens 512 \
+  --top-p 0.9 \
+  --prompt "Explain exponential backoff in one paragraph"
+```
+
+These controls are passed to protocol providers and mapped to provider-native request fields.
+
+## Execution Metadata
+
+Every successful JSON output now includes runtime execution timing:
+
+- `metadata.execution_ms` (integer, non-negative)
+
+Providers that expose usage counters also include:
+
+- `metadata.usage.prompt_tokens`
+- `metadata.usage.completion_tokens`
+- `metadata.usage.total_tokens`
+
+`metadata.usage` is optional and appears only when upstream provider usage is available.
+
 Custom output paths:
 
 ```bash
@@ -439,11 +486,17 @@ Generated JSON (`outputs/response.json`):
 
 ```json
 {
-  "prompt": "Hello world",
-  "response": "Echo: Hello world",
+  "prompt": "Explain retry strategy",
+  "response": "Retry strategy improves resilience by handling transient failures with controlled backoff.",
   "metadata": {
-    "provider": "http",
-    "timestamp_utc": "2026-02-18T13:43:51.236575+00:00"
+    "provider": "openai",
+    "timestamp_utc": "2026-03-15T10:21:11.236575+00:00",
+    "execution_ms": 412,
+    "usage": {
+      "prompt_tokens": 32,
+      "completion_tokens": 41,
+      "total_tokens": 73
+    }
   }
 }
 ```
@@ -455,16 +508,16 @@ Generated Markdown (`outputs/response.md`):
 
 ## Prompt
 
-Hello world
+Explain retry strategy
 
 ## Response
 
-Echo: Hello world
+Retry strategy improves resilience by handling transient failures with controlled backoff.
 
 ## Metadata
 
-- Provider: http
-- Timestamp (UTC): 2026-02-18T13:43:51.236575+00:00
+- Provider: openai
+- Timestamp (UTC): 2026-03-15T10:21:11.236575+00:00
 ```
 
 ## Testing

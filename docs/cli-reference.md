@@ -115,6 +115,9 @@ Expected table:
 provider = "http"
 api_endpoint = "http://localhost:11434/api/generate"
 api_model = "llama3.2"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 out_json = "outputs/response.json"
@@ -171,6 +174,36 @@ Rules:
 - non-stream providers fall back to standard `generate()` behavior
 - final JSON and Markdown outputs are still written after full completion
 
+### `--temperature`
+
+Optional runtime temperature forwarded to provider generation payloads.
+
+Rules:
+
+- must be a float
+- must be greater than or equal to `0`
+- if omitted, provider default behavior is used
+
+### `--max-tokens`
+
+Optional max completion token budget forwarded to providers.
+
+Rules:
+
+- must be an integer
+- must be strictly greater than `0`
+- if omitted, provider default behavior is used
+
+### `--top-p`
+
+Optional nucleus sampling control forwarded to providers.
+
+Rules:
+
+- must be a float
+- must be greater than `0` and less than or equal to `1`
+- if omitted, provider default behavior is used
+
 ### `--timeout`
 
 HTTP timeout in seconds.
@@ -199,6 +232,20 @@ On successful execution, the CLI writes:
 
 - one JSON file
 - one Markdown file
+
+JSON metadata always includes:
+
+- `metadata.provider`
+- `metadata.timestamp_utc`
+- `metadata.execution_ms`
+
+JSON metadata may additionally include:
+
+- `metadata.usage.prompt_tokens`
+- `metadata.usage.completion_tokens`
+- `metadata.usage.total_tokens`
+
+`metadata.usage` is optional and appears only when the selected provider returns usage counters.
 
 The normalized JSON contract is documented in [`docs/output-contract.md`](./output-contract.md).
 
@@ -298,6 +345,18 @@ ai-prompt-runner \
   --api-key "$AI_API_KEY" \
   --stream \
   --prompt "Explain configuration precedence"
+```
+
+Run with runtime controls:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --temperature 0.2 \
+  --max-tokens 512 \
+  --top-p 0.9 \
+  --prompt "Summarize provider contract guarantees"
 ```
 
 Run with TOML config and prompt file:

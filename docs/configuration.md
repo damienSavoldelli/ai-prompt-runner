@@ -52,6 +52,9 @@ Expected section:
 provider = "http"
 api_endpoint = "http://localhost:11434/api/generate"
 api_model = "llama3.2"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 out_json = "outputs/response.json"
@@ -63,6 +66,9 @@ Supported TOML keys:
 - `provider`
 - `api_endpoint`
 - `api_model`
+- `temperature`
+- `max_tokens`
+- `top_p`
 - `timeout`
 - `retries`
 - `out_json`
@@ -79,6 +85,9 @@ Example protocol provider configurations:
 [ai_prompt_runner]
 provider = "anthropic"
 api_model = "claude-3-7-sonnet-latest"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 ```
@@ -87,6 +96,9 @@ retries = 0
 [ai_prompt_runner]
 provider = "google"
 api_model = "gemini-2.5-flash"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 ```
@@ -96,6 +108,9 @@ retries = 0
 provider = "ollama"
 api_endpoint = "http://localhost:11434/v1"
 api_model = "gemma3:latest"
+temperature = 0.2
+max_tokens = 512
+top_p = 0.9
 timeout = 30
 retries = 0
 ```
@@ -132,6 +147,12 @@ Current defaults include:
 - `out_json = "outputs/response.json"`
 - `out_md = "outputs/response.md"`
 
+Runtime controls default to provider behavior when omitted:
+
+- `temperature = None`
+- `max_tokens = None`
+- `top_p = None`
+
 Selected providers may also supply endpoint/model defaults through the registry when these values are omitted.
 
 ## Validation Rules
@@ -143,6 +164,9 @@ Examples:
 - endpoint must use `http://` or `https://`
 - timeout must be greater than `0`
 - retries must be greater than or equal to `0`
+- temperature must be greater than or equal to `0`
+- max_tokens must be greater than `0`
+- top_p must be greater than `0` and less than or equal to `1`
 - unsupported TOML keys are rejected
 
 Streaming note:

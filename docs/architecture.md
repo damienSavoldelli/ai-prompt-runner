@@ -47,6 +47,11 @@ The core layer contains the stable execution logic:
 
 The runner assumes a provider implementation that conforms to the provider contract and returns response text for a single prompt execution.
 
+Runtime metadata is also produced in the core layer:
+
+- `execution_ms` is measured in the runner for each execution
+- optional normalized `usage` is read from providers through the provider contract hook
+
 ## Provider Contract
 
 The provider layer is built around [`src/ai_prompt_runner/services/base.py`](../src/ai_prompt_runner/services/base.py).
@@ -54,8 +59,10 @@ The provider layer is built around [`src/ai_prompt_runner/services/base.py`](../
 Stable contract:
 
 - providers accept a user prompt string and optional one-shot `system_prompt`
-- providers return a response string on success through `generate(prompt, system_prompt=None)`
-- providers may optionally support chunk streaming through `generate_stream(prompt, system_prompt=None)`
+- providers accept optional runtime controls via `generation_config`
+- providers return a response string on success through `generate(prompt, system_prompt=None, generation_config=None)`
+- providers may optionally support chunk streaming through `generate_stream(prompt, system_prompt=None, generation_config=None)`
+- providers may expose optional normalized usage via `get_last_usage()`
 - providers raise provider-domain errors on failure
 
 Streaming behavior is intentionally optional at provider level. The runner keeps deterministic behavior by:
@@ -100,10 +107,22 @@ The normalized payload shape is:
   "response": "string",
   "metadata": {
     "provider": "string",
-    "timestamp_utc": "string"
+    "timestamp_utc": "string",
+    "execution_ms": 123,
+    "usage": {
+      "prompt_tokens": 42,
+      "completion_tokens": 84,
+      "total_tokens": 126
+    }
   }
 }
 ```
+
+Contract details:
+
+- `metadata.provider` and `metadata.timestamp_utc` are required
+- `metadata.execution_ms` is included for successful runs
+- `metadata.usage` is optional and appears only when provider usage metrics are available
 
 This contract is protected by:
 
