@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.7.1] - 2026-03-15
+
+### Added
+
+- Added CI artifact smoke-install validation for both wheel and sdist build outputs.
+- Added end-to-end taxonomy audit tests to verify normalized runtime error codes in `error.json`.
+- Added an operations runbook: `docs/ops-runbook.md` with error-code triage guidance and CI incident procedures.
+
+### Changed
+
+- Hardened run-log sanitization to redact runtime secrets from `error.json` message payloads.
+- Extended E2E log checks to enforce:
+    - no raw API key leakage in `request.json` / `error.json`
+    - masked `effective_config.provider.api_key`
+    - prompt not persisted in clear text (hash-only logging)
+- Linked runbook guidance from `README.md` and `docs/release-checklist.md`.
+
+### Notes
+
+- `v1.7.1` is a hardening and operations-readiness patch release.
+- No CLI interface changes.
+- No output schema/contract changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.7.0] - 2026-03-15
 
 ### Added
