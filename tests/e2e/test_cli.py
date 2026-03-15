@@ -543,6 +543,7 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     assert "--prompt-file" in captured.out
     assert "--system" in captured.out
     assert "--stream" in captured.out
+    assert "--strict-capabilities" in captured.out
     assert "--temperature" in captured.out
     assert "--max-tokens" in captured.out
     assert "--top-p" in captured.out
@@ -552,6 +553,130 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     assert "0  Success" in captured.out
     assert "1  Runtime error" in captured.out
     assert "2  Usage/validation error" in captured.out
+
+
+def test_cli_warns_on_unsupported_capability_in_permissive_mode(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    """Warn and continue when an unsupported capability is requested without strict mode."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--temperature",
+            "0.2",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Warning: provider 'http' reports capability 'temperature' as unsupported." in captured.err
+
+
+def test_cli_strict_capabilities_rejects_unsupported_option(monkeypatch, capsys) -> None:
+    """Fail before provider execution when strict mode rejects unsupported capabilities."""
+    called = {"create_provider": False}
+
+    def fake_create_provider(**kwargs):
+        called["create_provider"] = True
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--temperature",
+            "0.2",
+            "--strict-capabilities",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert called["create_provider"] is False
+    assert (
+        "Error: capability check failed: provider 'http' reports capability "
+        "'temperature' as unsupported."
+    ) in captured.err
+
+
+def test_cli_warns_on_unknown_capability_in_permissive_mode(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    """Warn and continue when requested capability support is unknown."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "openai",
+            "--top-p",
+            "0.95",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Warning: provider 'openai' reports capability 'top_p' as unknown." in captured.err
+
+
+def test_cli_strict_capabilities_rejects_unknown_option(monkeypatch, capsys) -> None:
+    """Fail before provider execution when strict mode rejects unknown capabilities."""
+    called = {"create_provider": False}
+
+    def fake_create_provider(**kwargs):
+        called["create_provider"] = True
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "openai",
+            "--top-p",
+            "0.95",
+            "--strict-capabilities",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert called["create_provider"] is False
+    assert (
+        "Error: capability check failed: provider 'openai' reports capability "
+        "'top_p' as unknown."
+    ) in captured.err
 
 
 def test_cli_rejects_missing_config_file() -> None:
