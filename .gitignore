@@ -194,6 +194,13 @@ cython_debug/
 # CLI generated artifacts
 outputs/
 
+# Mutation testing artifacts
+mutants/
+.mutmut-cache/
+cr-session.sqlite
+cosmic-ray-results.ndjson
+mutation-summary.md
+
 # Ruff stuff:
 .ruff_cache/
 

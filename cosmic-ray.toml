@@ -1,0 +1,9 @@
+[cosmic-ray]
+# Keep initial mutation scope narrow and fast.
+module-path = "src/ai_prompt_runner/core/validators.py"
+timeout = 30.0
+excluded-modules = []
+test-command = "python3 -m pytest -q tests/unit/test_validators.py"
+
+[cosmic-ray.distributor]
+name = "local"

@@ -100,6 +100,32 @@ CI also validates:
 
 This keeps the test suite tied to release quality rather than local convenience only.
 
+## Mutation Testing (Non-Blocking)
+
+The project also includes a non-blocking mutation-testing workflow to evaluate
+test quality over time without blocking normal CI.
+
+Current baseline is intentionally narrow:
+
+- target module: `src/ai_prompt_runner/core/validators.py`
+- test command: `python3 -m pytest -q tests/unit/test_validators.py`
+
+Local mutation run:
+
+```bash
+cosmic-ray baseline cosmic-ray.toml
+cosmic-ray init cosmic-ray.toml cr-session.sqlite
+cosmic-ray exec cosmic-ray.toml cr-session.sqlite
+cosmic-ray dump cr-session.sqlite > cosmic-ray-results.ndjson
+```
+
+Interpret results by reviewing:
+
+- `test_outcome: "killed"` (good)
+- `test_outcome: "survived"` (test gap)
+
+Mutation artifacts are diagnostics only and should never be committed.
+
 ## Local Validation Commands
 
 Primary local validation commands:
