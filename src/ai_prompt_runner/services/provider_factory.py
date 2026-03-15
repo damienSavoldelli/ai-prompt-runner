@@ -32,8 +32,6 @@ class ProviderCapabilities:
     temperature: ProviderCapabilityState
     top_p: ProviderCapabilityState
     max_tokens: ProviderCapabilityState
-    # Reserved for future compatibility checks; no runtime tool-calling support yet.
-    tools: ProviderCapabilityState
 
 
 @dataclass(frozen=True)
@@ -127,7 +125,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unsupported",
             top_p="unsupported",
             max_tokens="unsupported",
-            tools="unsupported",
         ),
     ),
     "openai_compatible": ProviderSpec(
@@ -142,7 +139,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "openai": ProviderSpec(
@@ -157,7 +153,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "openrouter": ProviderSpec(
@@ -172,7 +167,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "groq": ProviderSpec(
@@ -187,7 +181,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "together": ProviderSpec(
@@ -202,7 +195,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "fireworks": ProviderSpec(
@@ -217,7 +209,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "perplexity": ProviderSpec(
@@ -232,7 +223,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "inception": ProviderSpec(
@@ -247,7 +237,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "x": ProviderSpec(
@@ -262,7 +251,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "xai": ProviderSpec(
@@ -277,7 +265,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "lmstudio": ProviderSpec(
@@ -292,7 +279,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "ollama": ProviderSpec(
@@ -307,7 +293,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="unknown",
             top_p="unknown",
             max_tokens="unknown",
-            tools="unsupported",
         ),
     ),
     "anthropic": ProviderSpec(
@@ -322,7 +307,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="supported",
             top_p="supported",
             max_tokens="supported",
-            tools="unsupported",
         ),
     ),
     "google": ProviderSpec(
@@ -337,7 +321,6 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
             temperature="supported",
             top_p="supported",
             max_tokens="supported",
-            tools="unsupported",
         ),
     ),
 }

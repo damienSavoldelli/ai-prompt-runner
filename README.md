@@ -404,7 +404,6 @@ Current capability matrix fields:
 - `temperature`
 - `top_p`
 - `max_tokens`
-- `tools` (reserved; currently unsupported across providers)
 
 Example strict capability check:
 

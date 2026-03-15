@@ -104,7 +104,6 @@ The provider registry also carries a capability matrix per provider:
 - `temperature`
 - `top_p`
 - `max_tokens`
-- `tools` (reserved for future checks; currently unsupported)
 
 Each capability uses a tri-state contract:
 
