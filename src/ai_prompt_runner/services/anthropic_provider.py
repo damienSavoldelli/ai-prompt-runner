@@ -13,7 +13,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
-from ai_prompt_runner.core.models import GenerationConfig
+from ai_prompt_runner.core.models import GenerationConfig, UsageMetadata
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -34,6 +34,7 @@ class AnthropicProvider(BaseProvider):
 
     def __init__(self, config: AnthropicProviderConfig) -> None:
         self.config = config
+        self._last_usage: UsageMetadata | None = None
 
     def _raise_for_mapped_status(self, response: requests.Response) -> None:
         """Map provider HTTP status codes to domain-specific exceptions."""
@@ -126,6 +127,79 @@ class AnthropicProvider(BaseProvider):
 
         return text
 
+    def _extract_usage(self, payload: dict) -> UsageMetadata | None:
+        """
+        Normalize Anthropic usage shape to project-wide usage metadata.
+
+        Anthropic commonly returns:
+        {"usage": {"input_tokens": X, "output_tokens": Y}}
+        """
+        if not isinstance(payload, dict):
+            return None
+
+        usage_obj = payload.get("usage")
+        if not isinstance(usage_obj, dict):
+            return None
+
+        prompt_tokens_raw = usage_obj.get("input_tokens")
+        completion_tokens_raw = usage_obj.get("output_tokens")
+        total_tokens_raw = usage_obj.get("total_tokens")
+
+        prompt_tokens = (
+            prompt_tokens_raw if isinstance(prompt_tokens_raw, int) else None
+        )
+        completion_tokens = (
+            completion_tokens_raw if isinstance(completion_tokens_raw, int) else None
+        )
+        total_tokens = total_tokens_raw if isinstance(total_tokens_raw, int) else None
+
+        if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+            total_tokens = prompt_tokens + completion_tokens
+
+        return UsageMetadata(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def _merge_usage(self, usage_update: UsageMetadata) -> None:
+        """
+        Merge partial Anthropic stream usage updates into one normalized object.
+
+        Stream events may provide usage in multiple phases (`message_start`,
+        `message_delta`), so we merge instead of replacing blindly.
+        """
+        existing = self._last_usage or UsageMetadata()
+
+        prompt_tokens = (
+            usage_update.prompt_tokens
+            if usage_update.prompt_tokens is not None
+            else existing.prompt_tokens
+        )
+        completion_tokens = (
+            usage_update.completion_tokens
+            if usage_update.completion_tokens is not None
+            else existing.completion_tokens
+        )
+
+        total_tokens = (
+            usage_update.total_tokens
+            if usage_update.total_tokens is not None
+            else existing.total_tokens
+        )
+        if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+            total_tokens = prompt_tokens + completion_tokens
+
+        self._last_usage = UsageMetadata(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def get_last_usage(self) -> UsageMetadata | None:
+        """Expose normalized usage captured during the last provider call."""
+        return self._last_usage
+
     def generate(
         self,
         prompt: str,
@@ -145,6 +219,15 @@ class AnthropicProvider(BaseProvider):
         }
         if system_prompt is not None:
             payload["system"] = system_prompt
+        if generation_config is not None:
+            if generation_config.max_tokens is not None:
+                payload["max_tokens"] = generation_config.max_tokens
+            if generation_config.temperature is not None:
+                payload["temperature"] = generation_config.temperature
+            if generation_config.top_p is not None:
+                payload["top_p"] = generation_config.top_p
+
+        self._last_usage = None
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -167,6 +250,7 @@ class AnthropicProvider(BaseProvider):
             except ValueError as exc:
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
+            self._last_usage = self._extract_usage(body)
             return self._extract_text(body)
 
         # Defensive fallback: loop always returns or raises.
@@ -198,6 +282,15 @@ class AnthropicProvider(BaseProvider):
         }
         if system_prompt is not None:
             payload["system"] = system_prompt
+        if generation_config is not None:
+            if generation_config.max_tokens is not None:
+                payload["max_tokens"] = generation_config.max_tokens
+            if generation_config.temperature is not None:
+                payload["temperature"] = generation_config.temperature
+            if generation_config.top_p is not None:
+                payload["top_p"] = generation_config.top_p
+
+        self._last_usage = None
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False
@@ -230,6 +323,15 @@ class AnthropicProvider(BaseProvider):
                         raise ProviderError(
                             "Provider returned invalid streaming event JSON."
                         ) from exc
+
+                    # Anthropic usage may appear in different stream event shapes.
+                    event_usage = self._extract_usage(event)
+                    if event_usage is None and isinstance(event, dict):
+                        message = event.get("message")
+                        if isinstance(message, dict):
+                            event_usage = self._extract_usage(message)
+                    if event_usage is not None:
+                        self._merge_usage(event_usage)
 
                     delta_text = self._extract_stream_delta(event)
                     if delta_text is None:

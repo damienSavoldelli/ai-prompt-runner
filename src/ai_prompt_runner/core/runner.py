@@ -4,7 +4,12 @@ from collections.abc import Callable
 from time import perf_counter
 
 from ai_prompt_runner.core.errors import ProviderError
-from ai_prompt_runner.core.models import GenerationConfig, PromptRequest, PromptResponse
+from ai_prompt_runner.core.models import (
+    GenerationConfig,
+    PromptRequest,
+    PromptResponse,
+    UsageMetadata,
+)
 from ai_prompt_runner.services.base import BaseProvider
 
 from ai_prompt_runner.core.validators import validate_response_payload
@@ -95,6 +100,24 @@ class PromptRunner:
                 on_stream_chunk(chunk)
         return "".join(chunks)
 
+    def _resolve_provider_usage(self) -> UsageMetadata | None:
+        """
+        Resolve optional normalized usage from provider after a run.
+
+        This keeps usage extraction in provider implementations while preserving
+        a stable runner payload contract.
+        """
+        usage_getter = getattr(self.provider, "get_last_usage", None)
+        if not callable(usage_getter):
+            return None
+
+        usage = usage_getter()
+        if usage is None:
+            return None
+        if not isinstance(usage, UsageMetadata):
+            raise ProviderError("Provider usage metadata must be a UsageMetadata object.")
+        return usage
+
     def run(
         self,
         request: PromptRequest,
@@ -107,12 +130,14 @@ class PromptRunner:
             on_stream_chunk=on_stream_chunk,
         )
         execution_ms = int((perf_counter() - start) * 1000)
+        usage = self._resolve_provider_usage()
 
         response = PromptResponse(
             prompt=request.prompt_text,
             response=answer_text,
             provider=request.provider,
             execution_ms=execution_ms,
+            usage=usage,
         )
         payload = response.to_dict()
         validate_response_payload(payload)

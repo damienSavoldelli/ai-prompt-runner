@@ -1,9 +1,8 @@
-import pytest
-
-from ai_prompt_runner.core.models import GenerationConfig, PromptRequest
-from ai_prompt_runner.core.runner import PromptRunner
 from ai_prompt_runner.core.errors import ProviderError
+from ai_prompt_runner.core.models import GenerationConfig, PromptRequest, UsageMetadata
+from ai_prompt_runner.core.runner import PromptRunner
 from ai_prompt_runner.services.base import BaseProvider
+import pytest
 
 
 class FakeProvider(BaseProvider):
@@ -93,6 +92,40 @@ class FakeCaptureConfigProvider(BaseProvider):
         self.last_config = generation_config
         yield "Echo: "
         yield prompt
+
+
+class FakeUsageProvider(BaseProvider):
+    """Provider stub exposing normalized usage through get_last_usage hook."""
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
+        return f"Echo: {prompt}"
+
+    def get_last_usage(self) -> UsageMetadata | None:
+        return UsageMetadata(
+            prompt_tokens=12,
+            completion_tokens=34,
+            total_tokens=46,
+        )
+
+
+class FakeInvalidUsageProvider(BaseProvider):
+    """Provider stub returning an invalid usage type to test runner guard rails."""
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
+        return f"Echo: {prompt}"
+
+    def get_last_usage(self):  # type: ignore[override]
+        return {"prompt_tokens": 1}
 
 
 def test_runner_returns_normalized_payload() -> None:
@@ -320,3 +353,37 @@ def test_runner_forwards_system_and_generation_config_to_generate_stream() -> No
     assert provider.last_config.temperature == 0.2
     assert provider.last_config.max_tokens == 150
     assert provider.last_config.top_p == 0.95
+
+
+def test_runner_includes_provider_usage_metadata_in_payload() -> None:
+    """Runner should include normalized provider usage when available."""
+    runner = PromptRunner(provider=FakeUsageProvider())
+
+    payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+        )
+    )
+
+    assert payload["metadata"]["usage"] == {
+        "prompt_tokens": 12,
+        "completion_tokens": 34,
+        "total_tokens": 46,
+    }
+
+
+def test_runner_rejects_invalid_provider_usage_shape() -> None:
+    """Runner should fail fast when a provider returns invalid usage type."""
+    runner = PromptRunner(provider=FakeInvalidUsageProvider())
+
+    with pytest.raises(
+        ProviderError,
+        match="Provider usage metadata must be a UsageMetadata object.",
+    ):
+        runner.run(
+            PromptRequest(
+                prompt_text="Hello",
+                provider="fake",
+            )
+        )

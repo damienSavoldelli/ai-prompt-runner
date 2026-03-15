@@ -8,6 +8,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.google_provider import (
     GoogleProvider,
     GoogleProviderConfig,
@@ -109,6 +110,66 @@ def test_generate_includes_system_instruction_when_provided(monkeypatch) -> None
 
     assert provider.generate("hello", system_prompt="You are strict.") == "ok"
     assert observed["payload"]["systemInstruction"]["parts"][0]["text"] == "You are strict."
+
+
+def test_generate_includes_runtime_controls_when_provided(monkeypatch) -> None:
+    """Runtime controls should map to Gemini generationConfig fields."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout):
+        observed["payload"] = json
+        return DummyResponse(
+            {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        fake_post,
+    )
+
+    result = provider.generate(
+        "hello",
+        generation_config=GenerationConfig(
+            temperature=0.2,
+            max_tokens=120,
+            top_p=0.95,
+        ),
+    )
+
+    assert result == "ok"
+    generation_payload = observed["payload"]["generationConfig"]
+    assert generation_payload["temperature"] == 0.2
+    assert generation_payload["maxOutputTokens"] == 120
+    assert generation_payload["topP"] == 0.95
+
+
+def test_generate_extracts_usage_metadata(monkeypatch) -> None:
+    """Gemini usageMetadata should be normalized into usage counters."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(
+            {
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {
+                    "promptTokenCount": 10,
+                    "candidatesTokenCount": 20,
+                    "totalTokenCount": 30,
+                },
+            },
+            status_code=200,
+        ),
+    )
+
+    assert provider.generate("hello") == "ok"
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -392,6 +453,67 @@ def test_generate_stream_includes_system_instruction_when_provided(monkeypatch) 
 
     assert list(provider.generate_stream("hello", system_prompt="You are strict.")) == ["ok"]
     assert observed["payload"]["systemInstruction"]["parts"][0]["text"] == "You are strict."
+
+
+def test_generate_stream_includes_runtime_controls_when_provided(monkeypatch) -> None:
+    """Stream payload should include Gemini generationConfig fields."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["payload"] = json
+        return DummyStreamResponse(
+            [
+                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        fake_post,
+    )
+
+    chunks = list(
+        provider.generate_stream(
+            "hello",
+            generation_config=GenerationConfig(
+                temperature=0.2,
+                max_tokens=120,
+                top_p=0.95,
+            ),
+        )
+    )
+    assert chunks == ["ok"]
+    generation_payload = observed["payload"]["generationConfig"]
+    assert generation_payload["temperature"] == 0.2
+    assert generation_payload["maxOutputTokens"] == 120
+    assert generation_payload["topP"] == 0.95
+
+
+def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
+    """Usage metadata from stream events should be captured and normalized."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.google_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}',
+                'data: {"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":20,"totalTokenCount":30}}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
 
 
 def test_generate_stream_joins_multiple_text_parts(monkeypatch) -> None:

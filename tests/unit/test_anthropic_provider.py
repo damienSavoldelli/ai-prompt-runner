@@ -8,6 +8,7 @@ from ai_prompt_runner.core.errors import (
     RateLimitError,
     UpstreamServerError,
 )
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.anthropic_provider import (
     AnthropicProvider,
     AnthropicProviderConfig,
@@ -110,6 +111,61 @@ def test_generate_includes_system_field_when_provided(monkeypatch) -> None:
 
     assert provider.generate("hello", system_prompt="You are strict.") == "ok"
     assert observed["payload"]["system"] == "You are strict."
+
+
+def test_generate_includes_runtime_controls_when_provided(monkeypatch) -> None:
+    """Runtime controls should map to Anthropic payload keys."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout):
+        observed["payload"] = json
+        return DummyResponse(
+            {"content": [{"type": "text", "text": "ok"}]},
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        fake_post,
+    )
+
+    result = provider.generate(
+        "hello",
+        generation_config=GenerationConfig(
+            temperature=0.2,
+            max_tokens=120,
+            top_p=0.95,
+        ),
+    )
+
+    assert result == "ok"
+    assert observed["payload"]["temperature"] == 0.2
+    assert observed["payload"]["max_tokens"] == 120
+    assert observed["payload"]["top_p"] == 0.95
+
+
+def test_generate_extracts_usage_metadata(monkeypatch) -> None:
+    """Anthropic usage should normalize input/output counters."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        lambda *args, **kwargs: DummyResponse(
+            {
+                "content": [{"type": "text", "text": "ok"}],
+                "usage": {"input_tokens": 10, "output_tokens": 20},
+            },
+            status_code=200,
+        ),
+    )
+
+    assert provider.generate("hello") == "ok"
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -363,6 +419,67 @@ def test_generate_stream_includes_system_field_when_provided(monkeypatch) -> Non
 
     assert list(provider.generate_stream("hello", system_prompt="You are strict.")) == ["ok"]
     assert observed["payload"]["system"] == "You are strict."
+
+
+def test_generate_stream_includes_runtime_controls_when_provided(monkeypatch) -> None:
+    """Stream payload should include Anthropic runtime controls."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["payload"] = json
+        return DummyStreamResponse(
+            [
+                'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        fake_post,
+    )
+
+    chunks = list(
+        provider.generate_stream(
+            "hello",
+            generation_config=GenerationConfig(
+                temperature=0.2,
+                max_tokens=120,
+                top_p=0.95,
+            ),
+        )
+    )
+    assert chunks == ["ok"]
+    assert observed["payload"]["temperature"] == 0.2
+    assert observed["payload"]["max_tokens"] == 120
+    assert observed["payload"]["top_p"] == 0.95
+
+
+def test_generate_stream_merges_usage_updates_from_multiple_events(monkeypatch) -> None:
+    """Stream usage updates should merge input/output tokens into one normalized usage."""
+    provider = _make_provider()
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        lambda *args, **kwargs: DummyStreamResponse(
+            [
+                'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+                'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}',
+                'data: {"type":"message_delta","usage":{"output_tokens":20}}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        ),
+    )
+
+    assert list(provider.generate_stream("hello")) == ["ok"]
+    usage = provider.get_last_usage()
+    assert usage is not None
+    assert usage.prompt_tokens == 10
+    assert usage.completion_tokens == 20
+    assert usage.total_tokens == 30
 
 
 def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:

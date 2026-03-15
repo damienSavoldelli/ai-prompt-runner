@@ -41,3 +41,9 @@ def test_base_generate_stream_raises_not_implemented_error() -> None:
 
     with pytest.raises(NotImplementedError, match="Streaming is not supported"):
         list(provider.generate_stream("hello"))
+
+
+def test_base_get_last_usage_defaults_to_none() -> None:
+    """BaseProvider usage hook should return None by default."""
+    provider = _DelegatingProvider()
+    assert provider.get_last_usage() is None
