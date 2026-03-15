@@ -37,6 +37,24 @@ The normalized response payload has this shape:
     "provider": "openai",
     "timestamp_utc": "2026-03-15T10:21:11.236575+00:00",
     "execution_ms": 412,
+    "model": "gpt-4o-mini",
+    "execution_context": {
+      "provider_protocol": "openai-compatible",
+      "api_endpoint": "https://api.openai.com/v1",
+      "model_requested": "gpt-4o-mini",
+      "model_resolved": "gpt-4o-mini",
+      "runner_version": "1.6.0",
+      "prompt_hash": "sha256:3a5898f8f9a8c98ef08f2f77ec4d5ffbc5f5f7930fb4780f8114a2abf2ff03f7",
+      "runtime": {
+        "stream": false,
+        "system_prompt_provided": false,
+        "temperature": 0.2,
+        "max_tokens": 512,
+        "top_p": 0.9,
+        "timeout_seconds": 30,
+        "max_retries": 0
+      }
+    },
     "usage": {
       "prompt_tokens": 32,
       "completion_tokens": 41,
@@ -75,6 +93,8 @@ Required fields:
 
 Optional fields:
 - `execution_ms`
+- `model`
+- `execution_context`
 - `usage`
 
 ### `metadata.provider`
@@ -111,6 +131,54 @@ Type:
 
 Constraints:
 - must be greater than or equal to `0`
+
+### `metadata.model`
+
+Provider model metadata attached by the runner.
+
+Type:
+- `string`
+
+Resolution behavior:
+- prefers provider-reported resolved model when available
+- otherwise falls back to requested model from provider config
+
+### `metadata.execution_context`
+
+Execution provenance snapshot assembled by the runner for reproducibility and auditability.
+
+Type:
+- `object`
+
+Required keys when present:
+- `provider_protocol`
+- `api_endpoint`
+- `model_requested`
+- `model_resolved`
+- `runner_version`
+- `prompt_hash`
+- `runtime`
+
+Field notes:
+- `provider_protocol`, `api_endpoint`, `model_requested`, `model_resolved` may be `null`
+- `runner_version` is resolved from installed package metadata
+- `prompt_hash` is `sha256:` prefixed lowercase hex digest of the effective prompt sent to the provider
+
+### `metadata.execution_context.runtime`
+
+Resolved runtime snapshot captured at execution time.
+
+Type:
+- `object`
+
+Required keys:
+- `stream` (`boolean`)
+- `system_prompt_provided` (`boolean`)
+- `temperature` (`number|null`)
+- `max_tokens` (`integer|null`)
+- `top_p` (`number|null`)
+- `timeout_seconds` (`integer|null`)
+- `max_retries` (`integer|null`)
 
 ### `metadata.usage`
 

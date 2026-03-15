@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.6.0] - 2026-03-15
+
+### Added
+
+- Added execution provenance metadata to normalized payloads:
+    - `metadata.model`
+    - `metadata.execution_context`
+    - `metadata.execution_context.runtime`
+- Added provenance context fields:
+    - `provider_protocol`
+    - `api_endpoint`
+    - `model_requested`
+    - `model_resolved`
+    - `runner_version`
+    - `prompt_hash` (`sha256:<hex>`)
+    - runtime snapshot (`stream`, `system_prompt_provided`, controls, timeout, retries)
+- Added provider contract hook for resolved model capture (`get_last_model_resolved`).
+- Added schema and runtime validator support for the new additive provenance fields.
+
+### Changed
+
+- Updated runner metadata assembly to compute provenance centrally from request, provider config, and provider-reported metadata.
+- Updated protocol providers to capture resolved model metadata when upstream responses expose it.
+- Expanded unit/schema coverage for provenance serialization, validation, and runner error-path guards.
+
+### Notes
+
+- `v1.6.0` is a stable feature release focused on reproducibility and traceability.
+- No CLI breaking changes.
+- No output contract breaking changes (additive metadata only).
+- Stateless execution architecture remains unchanged.
+
 ## [v1.5.0] - 2026-03-15
 
 ### Added

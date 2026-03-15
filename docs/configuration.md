@@ -161,6 +161,30 @@ Runtime controls default to provider behavior when omitted:
 
 Selected providers may also supply endpoint/model defaults through the registry when these values are omitted.
 
+## Provenance Snapshot
+
+Execution provenance metadata is produced from resolved runtime values after precedence and defaults are applied.
+
+The output payload includes `metadata.execution_context.runtime` with:
+
+- `stream`
+- `system_prompt_provided`
+- `temperature`
+- `max_tokens`
+- `top_p`
+- `timeout_seconds`
+- `max_retries`
+
+The payload also includes provenance fields for reproducibility:
+
+- `metadata.model`
+- `metadata.execution_context.provider_protocol`
+- `metadata.execution_context.api_endpoint`
+- `metadata.execution_context.model_requested`
+- `metadata.execution_context.model_resolved`
+- `metadata.execution_context.runner_version`
+- `metadata.execution_context.prompt_hash`
+
 ## Validation Rules
 
 Configuration values are validated before provider execution.

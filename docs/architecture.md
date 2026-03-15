@@ -50,6 +50,8 @@ The runner assumes a provider implementation that conforms to the provider contr
 Runtime metadata is also produced in the core layer:
 
 - `execution_ms` is measured in the runner for each execution
+- `model` is emitted from resolved provider metadata (fallback to requested model)
+- `execution_context` is assembled in the runner as a reproducibility snapshot
 - optional normalized `usage` is read from providers through the provider contract hook
 
 ## Provider Contract
@@ -139,6 +141,24 @@ The normalized payload shape is:
     "provider": "string",
     "timestamp_utc": "string",
     "execution_ms": 123,
+    "model": "string",
+    "execution_context": {
+      "provider_protocol": "string|null",
+      "api_endpoint": "string|null",
+      "model_requested": "string|null",
+      "model_resolved": "string|null",
+      "runner_version": "string",
+      "prompt_hash": "sha256:<hex>",
+      "runtime": {
+        "stream": "boolean",
+        "system_prompt_provided": "boolean",
+        "temperature": "number|null",
+        "max_tokens": "integer|null",
+        "top_p": "number|null",
+        "timeout_seconds": "integer|null",
+        "max_retries": "integer|null"
+      }
+    },
     "usage": {
       "prompt_tokens": 42,
       "completion_tokens": 84,
@@ -152,6 +172,8 @@ Contract details:
 
 - `metadata.provider` and `metadata.timestamp_utc` are required
 - `metadata.execution_ms` is included for successful runs
+- `metadata.model` and `metadata.execution_context` are additive provenance fields
+- `metadata.execution_context.prompt_hash` is SHA256 of the effective prompt sent to the provider
 - `metadata.usage` is optional and appears only when provider usage metrics are available
 
 This contract is protected by:
