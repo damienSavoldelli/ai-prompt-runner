@@ -4,7 +4,11 @@ from ai_prompt_runner.services.anthropic_provider import AnthropicProvider
 from ai_prompt_runner.services.google_provider import GoogleProvider
 from ai_prompt_runner.services.http_provider import HTTPProvider
 from ai_prompt_runner.services.openai_compatible_provider import OpenAICompatibleProvider
-from ai_prompt_runner.services.provider_factory import ConfigurationError, create_provider
+from ai_prompt_runner.services.provider_factory import (
+    ConfigurationError,
+    create_provider,
+    get_provider_spec,
+)
 
 
 def test_create_provider_returns_http_provider_with_cli_values() -> None:
@@ -234,3 +238,58 @@ def test_create_provider_supports_ollama_alias_with_registry_defaults(monkeypatc
     assert provider.config.endpoint == "http://localhost:11434/v1"
     assert provider.config.model == "llama3.2"
     assert provider.config.api_key == "dummy"
+
+
+def test_get_provider_spec_rejects_unknown_provider() -> None:
+    """Provider spec lookup must raise on unsupported provider keys."""
+    with pytest.raises(ConfigurationError, match="Unsupported provider"):
+        get_provider_spec("unknown")
+
+
+def test_http_provider_capabilities_are_explicitly_limited() -> None:
+    """
+    Legacy HTTP adapter should declare limited capabilities.
+
+    This protects future safety checks from assuming support that does not
+    exist in this implementation.
+    """
+    spec = get_provider_spec("http")
+    assert spec.capabilities.stream == "unsupported"
+    assert spec.capabilities.system == "supported"
+    assert spec.capabilities.usage == "unsupported"
+    assert spec.capabilities.temperature == "unsupported"
+    assert spec.capabilities.top_p == "unsupported"
+    assert spec.capabilities.max_tokens == "unsupported"
+    assert spec.capabilities.tools == "unsupported"
+
+
+def test_openai_compatible_aliases_expose_unknown_runtime_controls() -> None:
+    """
+    OpenAI-compatible aliases map to heterogeneous backends.
+
+    Runtime controls and usage are therefore declared as unknown, while
+    stream/system remain adapter-supported.
+    """
+    spec = get_provider_spec("openrouter")
+    assert spec.capabilities.stream == "supported"
+    assert spec.capabilities.system == "supported"
+    assert spec.capabilities.usage == "unknown"
+    assert spec.capabilities.temperature == "unknown"
+    assert spec.capabilities.top_p == "unknown"
+    assert spec.capabilities.max_tokens == "unknown"
+    assert spec.capabilities.tools == "unsupported"
+
+
+def test_anthropic_and_google_capabilities_are_marked_supported() -> None:
+    """Protocol-specific adapters should expose explicit supported capabilities."""
+    anthropic_spec = get_provider_spec("anthropic")
+    google_spec = get_provider_spec("google")
+
+    for spec in (anthropic_spec, google_spec):
+        assert spec.capabilities.stream == "supported"
+        assert spec.capabilities.system == "supported"
+        assert spec.capabilities.usage == "supported"
+        assert spec.capabilities.temperature == "supported"
+        assert spec.capabilities.top_p == "supported"
+        assert spec.capabilities.max_tokens == "supported"
+        assert spec.capabilities.tools == "unsupported"
