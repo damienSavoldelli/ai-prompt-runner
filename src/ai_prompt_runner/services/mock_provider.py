@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 
 from ai_prompt_runner.core.errors import ProviderError
+from ai_prompt_runner.core.models import GenerationConfig
 from ai_prompt_runner.services.base import BaseProvider
 
 
@@ -18,7 +19,12 @@ class MockProvider(BaseProvider):
             return prompt
         return f"SYSTEM:\n{system_prompt}\n\nUSER:\n{prompt}"
 
-    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> str:
         """Return deterministic text or raise a provider-domain error."""
         if self.failure_message is not None:
             raise ProviderError(self.failure_message)
@@ -28,6 +34,7 @@ class MockProvider(BaseProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
+        generation_config: GenerationConfig | None = None,
     ) -> Iterator[str]:
         """
         Yield deterministic chunks for stream-path tests without network I/O.
