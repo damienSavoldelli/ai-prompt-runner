@@ -13,6 +13,11 @@ class FakeProvider:
     def generate(self, prompt: str) -> str:
         return f"Echo: {prompt}"
 
+    def generate_stream(self, prompt: str):
+        """Stream deterministic chunks to exercise CLI streaming behavior."""
+        for char in f"Echo: {prompt}":
+            yield char
+
 
 def test_cli_main_generates_json_and_markdown_files(monkeypatch, tmp_path: Path) -> None:
     """Generate JSON/Markdown outputs from a prompt using a fake provider."""
@@ -136,7 +141,7 @@ def test_cli_returns_error_on_runner_failure(monkeypatch, capsys) -> None:
         def __init__(self, provider) -> None:
             self.provider = provider
 
-        def run(self, request):
+        def run(self, request, on_stream_chunk=None):
             raise cli.PromptRunnerError("runner failed")
 
     monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
@@ -420,6 +425,7 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     # argparse writes --help output to stdout and exits with code 0.
     captured = capsys.readouterr()
     assert "--prompt-file" in captured.out
+    assert "--stream" in captured.out
     assert "--config" in captured.out
     assert "piped stdin" in captured.out
     assert "Exit codes:" in captured.out
@@ -609,3 +615,69 @@ def test_load_config_file_rejects_non_mapping_root(monkeypatch, tmp_path: Path) 
 
     with pytest.raises(argparse.ArgumentTypeError, match="config root must be a TOML table"):
         cli._load_config_file(str(config_file))
+
+
+def test_cli_stream_prints_chunks_and_persists_final_payload(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    """Stream chunks to stdout and still persist the same final response payload."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Stream",
+            "--provider",
+            "openai",
+            "--stream",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["response"] == "Echo: Hello Stream"
+
+    captured = capsys.readouterr()
+    assert "Echo: Hello Stream" in captured.out
+
+
+def test_cli_stream_falls_back_to_generate_when_provider_has_no_stream(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Fallback to non-stream execution when provider does not implement streaming."""
+
+    class FakeNoStreamProvider:
+        def generate(self, prompt: str) -> str:
+            return f"Echo: {prompt}"
+
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeNoStreamProvider())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Fallback",
+            "--provider",
+            "http",
+            "--stream",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["response"] == "Echo: Hello Fallback"

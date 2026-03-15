@@ -187,3 +187,43 @@ def test_provider_contract_generate_raises_provider_error_on_failure(
 
     with pytest.raises(ProviderError):
         provider.generate("hello")
+
+
+@pytest.mark.parametrize("provider_name", ["openai_compatible", "mock"])
+def test_provider_contract_generate_stream_returns_chunks_for_supported_providers(
+    provider_name: str,
+    monkeypatch,
+) -> None:
+    """Providers that support stream mode must yield string chunks."""
+    provider = _make_provider(provider_name)
+
+    if provider_name == "openai_compatible":
+        class FakeStreamResponse:
+            status_code = 200
+
+            def iter_lines(self, decode_unicode: bool = True):
+                assert decode_unicode is True
+                yield 'data: {"choices":[{"delta":{"content":"Echo: "}}]}'
+                yield 'data: {"choices":[{"delta":{"content":"hello"}}]}'
+                yield "data: [DONE]"
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.openai_compatible_provider.requests.post",
+            lambda *args, **kwargs: FakeStreamResponse(),
+        )
+
+    chunks = list(provider.generate_stream("hello"))
+    assert chunks
+    assert all(isinstance(chunk, str) for chunk in chunks)
+    assert "".join(chunks) == "Echo: hello"
+
+
+@pytest.mark.parametrize("provider_name", ["http", "anthropic", "google"])
+def test_provider_contract_generate_stream_raises_not_implemented_for_non_stream_providers(
+    provider_name: str,
+) -> None:
+    """Providers without stream support should raise NotImplementedError by contract."""
+    provider = _make_provider(provider_name)
+
+    with pytest.raises(NotImplementedError, match="Streaming is not supported"):
+        list(provider.generate_stream("hello"))
