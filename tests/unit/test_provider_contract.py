@@ -189,7 +189,7 @@ def test_provider_contract_generate_raises_provider_error_on_failure(
         provider.generate("hello")
 
 
-@pytest.mark.parametrize("provider_name", ["openai_compatible", "anthropic", "mock"])
+@pytest.mark.parametrize("provider_name", ["openai_compatible", "anthropic", "google", "mock"])
 def test_provider_contract_generate_stream_returns_chunks_for_supported_providers(
     provider_name: str,
     monkeypatch,
@@ -227,13 +227,28 @@ def test_provider_contract_generate_stream_returns_chunks_for_supported_provider
             lambda *args, **kwargs: FakeStreamResponse(),
         )
 
+    if provider_name == "google":
+        class FakeStreamResponse:
+            status_code = 200
+
+            def iter_lines(self, decode_unicode: bool = True):
+                assert decode_unicode is True
+                yield 'data: {"candidates":[{"content":{"parts":[{"text":"Echo: "}]}}]}'
+                yield 'data: {"candidates":[{"content":{"parts":[{"text":"hello"}]}}]}'
+                yield "data: [DONE]"
+
+        monkeypatch.setattr(
+            "ai_prompt_runner.services.google_provider.requests.post",
+            lambda *args, **kwargs: FakeStreamResponse(),
+        )
+
     chunks = list(provider.generate_stream("hello"))
     assert chunks
     assert all(isinstance(chunk, str) for chunk in chunks)
     assert "".join(chunks) == "Echo: hello"
 
 
-@pytest.mark.parametrize("provider_name", ["http", "google"])
+@pytest.mark.parametrize("provider_name", ["http"])
 def test_provider_contract_generate_stream_raises_not_implemented_for_non_stream_providers(
     provider_name: str,
 ) -> None:
