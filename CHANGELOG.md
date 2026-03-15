@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.6.1] - 2026-03-15
+
+### Changed
+
+- Updated package metadata license declaration to modern PEP 621 style:
+    - `license = "MIT"`
+    - `license-files = ["LICENSE"]`
+- Removed deprecated license classifier from `classifiers` to eliminate setuptools deprecation warnings during build.
+
+### Notes
+
+- `v1.6.1` is a packaging metadata maintenance release.
+- No runtime behavior changes.
+- No CLI, provider, or output contract changes.
+
 ## [v1.6.0] - 2026-03-15
 
 ### Added
