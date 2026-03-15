@@ -544,6 +544,8 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     assert "--system" in captured.out
     assert "--stream" in captured.out
     assert "--strict-capabilities" in captured.out
+    assert "--dry-run" in captured.out
+    assert "--print-effective-config" in captured.out
     assert "--temperature" in captured.out
     assert "--max-tokens" in captured.out
     assert "--top-p" in captured.out
@@ -677,6 +679,123 @@ def test_cli_strict_capabilities_rejects_unknown_option(monkeypatch, capsys) -> 
         "Error: capability check failed: provider 'openai' reports capability "
         "'top_p' as unknown."
     ) in captured.err
+
+
+def test_cli_dry_run_succeeds_without_prompt_and_without_runner(monkeypatch, capsys) -> None:
+    """Dry-run should validate and exit successfully without invoking PromptRunner.run."""
+    called = {"runner_run": False}
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            called["runner_run"] = True
+            return {}
+
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    exit_code = cli.main(
+        [
+            "--provider",
+            "http",
+            "--api-endpoint",
+            "http://localhost:11434/api/generate",
+            "--api-key",
+            "dummy",
+            "--dry-run",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert called["runner_run"] is False
+
+    payload = json.loads(captured.out)
+    assert payload["mode"] == "dry-run"
+    assert payload["status"] == "ok"
+    assert payload["effective_config"]["request"]["prompt_provided"] is False
+
+
+def test_cli_dry_run_strict_capabilities_rejects_before_provider_creation(
+    monkeypatch,
+    capsys,
+) -> None:
+    """Dry-run strict mode should fail fast on capability mismatch before provider creation."""
+    called = {"create_provider": False}
+
+    def fake_create_provider(**kwargs):
+        called["create_provider"] = True
+        return FakeProvider()
+
+    monkeypatch.setattr(cli, "create_provider", fake_create_provider)
+
+    exit_code = cli.main(
+        [
+            "--provider",
+            "http",
+            "--api-endpoint",
+            "http://localhost:11434/api/generate",
+            "--api-key",
+            "dummy",
+            "--temperature",
+            "0.2",
+            "--dry-run",
+            "--strict-capabilities",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert called["create_provider"] is False
+    assert (
+        "Error: capability check failed: provider 'http' reports capability "
+        "'temperature' as unsupported."
+    ) in captured.err
+
+
+def test_cli_print_effective_config_masks_api_key(monkeypatch, tmp_path: Path, capsys) -> None:
+    """Effective config output must mask API key values."""
+
+    class FakeProviderWithConfig:
+        def __init__(self) -> None:
+            self.config = argparse.Namespace(
+                endpoint="https://api.openai.com/v1",
+                api_key="super-secret-key",
+                model="gpt-4o-mini",
+                timeout_seconds=30,
+                max_retries=0,
+            )
+
+        def generate(self, prompt: str, system_prompt=None, generation_config=None) -> str:
+            return "Echo: hello"
+
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProviderWithConfig())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "openai",
+            "--api-key",
+            "dummy",
+            "--print-effective-config",
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert '"api_key": "***set***"' in captured.err
+    assert "super-secret-key" not in captured.err
 
 
 def test_cli_rejects_missing_config_file() -> None:
