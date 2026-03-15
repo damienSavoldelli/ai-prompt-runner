@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.2.1] - 2026-03-15
+
+### Added
+
+- Added a runner invariant test ensuring stream and non-stream execution produce equivalent final payloads (excluding runtime timestamp differences).
+
+### Changed
+
+- Strengthened regression protection for artifact determinism in stream mode without changing runtime behavior.
+
+### Notes
+
+- `v1.2.1` is a patch release focused on test hardening.
+- No CLI, provider implementation, or output schema changes.
+
 ## [v1.2.0] - 2026-03-15
 
 ### Added
