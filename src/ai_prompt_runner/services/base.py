@@ -55,3 +55,12 @@ class BaseProvider(ABC):
         not expose usage metrics.
         """
         return None
+
+    def get_last_model_resolved(self) -> str | None:
+        """
+        Return provider-reported resolved model metadata from the last call.
+
+        Providers can override this when upstream APIs return effective model
+        resolution (for example alias -> concrete model version).
+        """
+        return None

@@ -9,6 +9,7 @@ from ai_prompt_runner.services.base import BaseProvider
 
 class MockProvider(BaseProvider):
     """Deterministic provider implementation without network access."""
+    provider_protocol = "mock"
 
     def __init__(self, failure_message: str | None = None) -> None:
         self.failure_message = failure_message
