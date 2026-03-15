@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import tomllib
+from dataclasses import asdict
 from pathlib import Path
 
 from importlib.metadata import PackageNotFoundError, version
@@ -113,6 +114,19 @@ def _resolve_prompt_text(args: argparse.Namespace) -> str:
     if not sys.stdin.isatty():
         return _non_blank_text(sys.stdin.read())
     raise argparse.ArgumentTypeError("prompt is required (use --prompt, --prompt-file, or stdin).")
+
+
+def _resolve_optional_prompt_text_for_dry_run(args: argparse.Namespace) -> str | None:
+    """
+    Resolve prompt text for dry-run diagnostics without consuming stdin.
+
+    Dry-run is config/capability validation only, so prompt input is optional.
+    """
+    if args.prompt is not None:
+        return args.prompt
+    if args.prompt_file is not None:
+        return args.prompt_file
+    return None
 
 def _load_config_file(path_value: str) -> dict:
     """Load and validate an optional TOML config file."""
@@ -265,6 +279,59 @@ def _evaluate_provider_capabilities(
     return warnings, errors
 
 
+def _provider_runtime_snapshot(provider, args: argparse.Namespace) -> dict[str, object]:
+    """
+    Build a sanitized runtime snapshot from provider config when available.
+
+    API key is always masked in this diagnostic payload.
+    """
+    config = getattr(provider, "config", None)
+    endpoint = getattr(config, "endpoint", args.api_endpoint)
+    model = getattr(config, "model", args.api_model)
+    timeout_seconds = getattr(config, "timeout_seconds", args.timeout)
+    max_retries = getattr(config, "max_retries", args.retries)
+    raw_api_key = getattr(config, "api_key", None)
+
+    return {
+        "endpoint": endpoint,
+        "api_key": "***set***" if bool(raw_api_key) else "not set",
+        "model": model,
+        "timeout_seconds": timeout_seconds,
+        "max_retries": max_retries,
+    }
+
+
+def _build_effective_config_payload(
+    provider_spec: ProviderSpec,
+    provider,
+    args: argparse.Namespace,
+    warnings: list[str],
+    errors: list[str],
+    prompt_text: str | None,
+) -> dict[str, object]:
+    """Return JSON-serializable effective configuration diagnostics."""
+    return {
+        "provider": {
+            "name": provider_spec.provider_id,
+            **_provider_runtime_snapshot(provider, args),
+        },
+        "request": {
+            "prompt_provided": prompt_text is not None,
+            "system_provided": args.system is not None,
+            "stream": args.stream,
+            "temperature": args.temperature,
+            "max_tokens": args.max_tokens,
+            "top_p": args.top_p,
+        },
+        "capabilities": asdict(provider_spec.capabilities),
+        "capability_validation": {
+            "strict_mode": args.strict_capabilities,
+            "warnings": warnings,
+            "errors": errors,
+        },
+    }
+
+
 # Build safe preview values for --help without leaking secrets.
 def _env_preview() -> tuple[str, str, str]:
     """Return safe preview of environment configuration for help text."""
@@ -320,6 +387,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fail when requested options are unsupported or unknown for the selected provider.",
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate configuration/capabilities and exit without provider execution.",
+    )
+    parser.add_argument(
+        "--print-effective-config",
+        action="store_true",
+        help="Print resolved runtime configuration (with masked secrets).",
+    )
+    parser.add_argument(
         "--temperature",
         type=_non_negative_float,
         default=None,
@@ -353,11 +430,14 @@ def main(argv: list[str] | None = None) -> int:
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
 
-    # Resolve prompt from CLI args first, then fallback to piped stdin.
-    try:
-        prompt_text = _resolve_prompt_text(args)
-    except argparse.ArgumentTypeError as exc:
-        parser.error(str(exc))
+    # Resolve prompt text unless dry-run mode is requested.
+    if args.dry_run:
+        prompt_text = _resolve_optional_prompt_text_for_dry_run(args)
+    else:
+        try:
+            prompt_text = _resolve_prompt_text(args)
+        except argparse.ArgumentTypeError as exc:
+            parser.error(str(exc))
 
     # Validate requested capabilities before provider instantiation.
     try:
@@ -389,6 +469,32 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
 
+    effective_config = _build_effective_config_payload(
+        provider_spec=provider_spec,
+        provider=provider,
+        args=args,
+        warnings=warnings,
+        errors=errors,
+        prompt_text=prompt_text,
+    )
+
+    if args.print_effective_config:
+        print(json.dumps(effective_config, indent=2, ensure_ascii=False), file=sys.stderr)
+
+    if args.dry_run:
+        print(
+            json.dumps(
+                {
+                    "mode": "dry-run",
+                    "status": "ok",
+                    "effective_config": effective_config,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return EXIT_OK
+
     runner = PromptRunner(provider=provider)
 
     def _print_stream_chunk(chunk: str) -> None:
@@ -398,7 +504,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = runner.run(
             PromptRequest(
-                prompt_text=prompt_text,
+                prompt_text=prompt_text or "",
                 provider=args.provider,
                 system_prompt=args.system,
                 temperature=args.temperature,
