@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.6.2] - 2026-03-15
+
+### Changed
+
+- Removed `tools` from the provider capability matrix to keep the capability contract aligned with currently supported runtime features.
+- Cleaned related capability assertions and documentation references.
+
+### Notes
+
+- `v1.6.2` is a patch cleanup release.
+- No CLI behavior changes.
+- No provider execution behavior changes.
+- No output contract/schema changes.
+
 ## [v1.6.1] - 2026-03-15
 
 ### Changed
