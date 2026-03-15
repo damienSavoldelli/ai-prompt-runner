@@ -19,6 +19,10 @@ Prompt input is resolved in this priority order:
 
 If none of these sources is provided, the CLI exits with a usage error.
 
+Dry-run exception:
+
+- when `--dry-run` is set, prompt input is optional because no provider generation is executed
+
 Examples:
 
 ```bash
@@ -174,6 +178,44 @@ Rules:
 - non-stream providers fall back to standard `generate()` behavior
 - final JSON and Markdown outputs are still written after full completion
 
+### `--strict-capabilities`
+
+Enable strict provider capability enforcement for requested options.
+
+Rules:
+
+- optional boolean flag (`store_true`)
+- in strict mode, requested capabilities marked `unsupported` or `unknown` fail fast
+- capability validation failure returns runtime error (exit code `1`)
+
+### `--dry-run`
+
+Run configuration and capability preflight only.
+
+Rules:
+
+- optional boolean flag (`store_true`)
+- provider config is resolved and validated
+- capability checks are evaluated
+- no provider generation call is made
+- no JSON/Markdown artifact files are written
+- prompt input is optional in this mode
+
+Dry-run output:
+
+- prints a diagnostic JSON payload with `mode`, `status`, and `effective_config`
+
+### `--print-effective-config`
+
+Print resolved runtime configuration diagnostics.
+
+Rules:
+
+- optional boolean flag (`store_true`)
+- API key is masked (`***set***`/`not set`)
+- diagnostics include provider capabilities and capability validation results
+- output is written to stderr
+
 ### `--temperature`
 
 Optional runtime temperature forwarded to provider generation payloads.
@@ -262,6 +304,7 @@ The CLI uses stable exit codes:
 Typical runtime failures include:
 
 - invalid provider configuration
+- strict capability validation failures
 - missing endpoint or API key
 - network request failures
 - provider HTTP errors
@@ -345,6 +388,26 @@ ai-prompt-runner \
   --api-key "$AI_API_KEY" \
   --stream \
   --prompt "Explain configuration precedence"
+```
+
+Run with strict capability validation:
+
+```bash
+ai-prompt-runner \
+  --provider http \
+  --temperature 0.2 \
+  --strict-capabilities \
+  --prompt "Hello"
+```
+
+Run a dry-run preflight with effective config diagnostics:
+
+```bash
+ai-prompt-runner \
+  --provider openai \
+  --api-key "$AI_API_KEY" \
+  --dry-run \
+  --print-effective-config
 ```
 
 Run with runtime controls:

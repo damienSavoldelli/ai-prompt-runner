@@ -74,10 +74,13 @@ Supported TOML keys:
 - `out_json`
 - `out_md`
 
-CLI-only runtime flag (not supported in env/TOML):
+CLI-only runtime flags (not supported in env/TOML):
 
 - `--stream`
 - `--system`
+- `--strict-capabilities`
+- `--dry-run`
+- `--print-effective-config`
 
 Example protocol provider configurations:
 
@@ -120,6 +123,9 @@ Unsupported TOML key:
 - `api_key`
 - `stream`
 - `system`
+- `strict_capabilities`
+- `dry_run`
+- `print_effective_config`
 
 ## Secret Handling
 
@@ -178,6 +184,12 @@ System prompt note:
 
 - `--system` is intentionally CLI-only so one-shot instruction context is explicit per run.
 - It does not introduce conversation history or persistent prompt state.
+
+Safety-mode note:
+
+- `--strict-capabilities`, `--dry-run`, and `--print-effective-config` are intentionally CLI-only.
+- these flags control per-execution safety and diagnostics, not persistent runtime defaults.
+- `--dry-run` validates resolved config/capabilities and exits without provider generation.
 
 ## Related Documentation
 

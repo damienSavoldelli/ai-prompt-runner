@@ -92,6 +92,36 @@ Provider selection is protocol-first, with aliases mapped through the registry:
 - Gemini generateContent protocol: `google`
 - Legacy generic HTTP protocol: `http`
 
+### Capability Contract and Safety Validation
+
+The provider registry also carries a capability matrix per provider:
+
+- `stream`
+- `system`
+- `usage`
+- `temperature`
+- `top_p`
+- `max_tokens`
+- `tools` (reserved for future checks; currently unsupported)
+
+Each capability uses a tri-state contract:
+
+- `supported`
+- `unsupported`
+- `unknown`
+
+The CLI evaluates requested runtime options against this matrix before execution.
+
+Safety behavior:
+
+- permissive mode (default): capability mismatches emit warnings and execution continues
+- strict mode (`--strict-capabilities`): mismatches are blocking runtime errors
+
+Preflight behavior:
+
+- `--dry-run` validates config resolution and capabilities without provider generation
+- `--print-effective-config` emits masked, resolved runtime diagnostics for CI/ops debugging
+
 ## Output Contract
 
 The JSON output contract is formally frozen and described in:
