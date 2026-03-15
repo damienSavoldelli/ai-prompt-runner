@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.5.0] - 2026-03-15
+
+### Added
+
+- Added provider capability contracts in the registry with tri-state feature support:
+    - `supported`
+    - `unsupported`
+    - `unknown`
+- Added CLI safety and diagnostics flags:
+    - `--strict-capabilities`
+    - `--dry-run`
+    - `--print-effective-config`
+- Added capability validation before execution with strict/permissive behavior controls.
+- Added dry-run preflight mode to validate resolved provider/runtime configuration without generation.
+- Added effective configuration diagnostics output with masked API key handling.
+- Added capability coverage for stream/system/usage/runtime controls and reserved `tools` capability metadata.
+
+### Changed
+
+- Updated runtime validation flow to check provider capability compatibility before provider execution.
+- Kept default behavior permissive (warning + continue) and introduced strict mode for fail-fast validation.
+- Extended tests for capability contracts, strict/permissive safety behavior, dry-run flow, and effective-config diagnostics.
+- Updated technical documentation for v1.5 safety modes across README and docs.
+
+### Notes
+
+- `v1.5.0` is a stable feature release focused on execution safety and operator diagnostics.
+- No CLI breaking changes.
+- No output JSON schema/contract breaking changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.4.0] - 2026-03-15
 
 ### Added
