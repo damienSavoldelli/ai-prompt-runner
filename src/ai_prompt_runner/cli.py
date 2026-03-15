@@ -6,11 +6,14 @@ import os
 import sys
 import tomllib
 from dataclasses import asdict
+from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 
 from importlib.metadata import PackageNotFoundError, version
 from dotenv import load_dotenv
 
+from ai_prompt_runner.core.error_taxonomy import normalize_runtime_error
 from ai_prompt_runner.core.errors import PromptRunnerError
 from ai_prompt_runner.core.models import PromptRequest
 from ai_prompt_runner.core.runner import PromptRunner
@@ -128,6 +131,106 @@ def _resolve_optional_prompt_text_for_dry_run(args: argparse.Namespace) -> str |
         return args.prompt_file
     return None
 
+
+def _effective_prompt_for_hash(prompt_text: str | None, system_prompt: str | None) -> str | None:
+    """
+    Build deterministic effective prompt text for request logging.
+
+    Keep this aligned with runner prompt provenance hashing semantics.
+    """
+    if prompt_text is None:
+        return None
+    if system_prompt is None:
+        return prompt_text
+    return f"SYSTEM:\n{system_prompt}\n\nUSER:\n{prompt_text}"
+
+
+def _prompt_hash_for_log(prompt_text: str | None, system_prompt: str | None) -> str | None:
+    """Return SHA256 hash for request diagnostics without logging raw prompt text."""
+    effective_prompt = _effective_prompt_for_hash(prompt_text, system_prompt)
+    if effective_prompt is None:
+        return None
+    digest = sha256(effective_prompt.encode("utf-8"))
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _build_run_request_log_payload(
+    args: argparse.Namespace,
+    prompt_text: str | None,
+    effective_config: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Build sanitized request diagnostics payload for --log-run-dir artifacts."""
+    payload: dict[str, object] = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "provider": args.provider,
+        "prompt_hash": _prompt_hash_for_log(prompt_text, args.system),
+        "request": {
+            "prompt_provided": prompt_text is not None,
+            "system_provided": args.system is not None,
+            "stream": args.stream,
+            "temperature": args.temperature,
+            "max_tokens": args.max_tokens,
+            "top_p": args.top_p,
+        },
+    }
+    if effective_config is not None:
+        payload["effective_config"] = effective_config
+    return payload
+
+
+def _create_run_log_dir(log_run_dir: str | None) -> Path | None:
+    """
+    Create per-run log directory under the provided root.
+
+    Directory shape:
+    - <root>/run-YYYYmmddTHHMMSSffffffZ/
+    """
+    if log_run_dir is None:
+        return None
+    root = Path(log_run_dir)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    run_dir = root / f"run-{timestamp}"
+    run_dir.mkdir(parents=True, exist_ok=False)
+    return run_dir
+
+
+def _write_run_request_log(
+    run_log_dir: Path | None,
+    args: argparse.Namespace,
+    prompt_text: str | None,
+    effective_config: dict[str, object] | None = None,
+) -> None:
+    """Write sanitized request diagnostics when --log-run-dir is enabled."""
+    if run_log_dir is None:
+        return
+    write_json(
+        run_log_dir / "request.json",
+        _build_run_request_log_payload(
+            args=args,
+            prompt_text=prompt_text,
+            effective_config=effective_config,
+        ),
+    )
+
+
+def _write_run_response_log(run_log_dir: Path | None, payload: dict) -> None:
+    """Write successful normalized response payload for run diagnostics."""
+    if run_log_dir is None:
+        return
+    write_json(run_log_dir / "response.json", payload)
+
+
+def _write_run_error_log(
+    run_log_dir: Path | None,
+    exc: BaseException,
+    provider: str | None,
+) -> None:
+    """Write normalized error payload for run diagnostics."""
+    if run_log_dir is None:
+        return
+    error_payload = normalize_runtime_error(exc=exc, provider=provider).to_dict()
+    write_json(run_log_dir / "error.json", {"error": error_payload})
+
 def _load_config_file(path_value: str) -> dict:
     """Load and validate an optional TOML config file."""
     try:
@@ -169,6 +272,7 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
         "retries",
         "out_json",
         "out_md",
+        "log_run_dir",
     }
     unknown_keys = sorted(set(config.keys()) - allowed_keys)
     if unknown_keys:
@@ -191,16 +295,17 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
             return config[config_key]
         return default
 
-    args.provider = _pick_no_env(args.provider, "provider", "http")
-    args.api_endpoint = _pick_with_env(args.api_endpoint, "AI_API_ENDPOINT", "api_endpoint", None)
-    args.api_model = _pick_with_env(args.api_model, "AI_API_MODEL", "api_model", None)
-    args.temperature = _pick_no_env(args.temperature, "temperature", None)
-    args.max_tokens = _pick_no_env(args.max_tokens, "max_tokens", None)
-    args.top_p = _pick_no_env(args.top_p, "top_p", None)
-    args.timeout = _pick_no_env(args.timeout, "timeout", 30)
-    args.retries = _pick_no_env(args.retries, "retries", 0)
-    args.out_json = _pick_no_env(args.out_json, "out_json", "outputs/response.json")
-    args.out_md = _pick_no_env(args.out_md, "out_md", "outputs/response.md")
+    args.provider = _pick_no_env(getattr(args, "provider", None), "provider", "http")
+    args.api_endpoint = _pick_with_env(getattr(args, "api_endpoint", None), "AI_API_ENDPOINT", "api_endpoint", None)
+    args.api_model = _pick_with_env(getattr(args, "api_model", None), "AI_API_MODEL", "api_model", None)
+    args.temperature = _pick_no_env(getattr(args, "temperature", None), "temperature", None)
+    args.max_tokens = _pick_no_env(getattr(args, "max_tokens", None), "max_tokens", None)
+    args.top_p = _pick_no_env(getattr(args, "top_p", None), "top_p", None)
+    args.timeout = _pick_no_env(getattr(args, "timeout", None), "timeout", 30)
+    args.retries = _pick_no_env(getattr(args, "retries", None), "retries", 0)
+    args.out_json = _pick_no_env(getattr(args, "out_json", None), "out_json", "outputs/response.json")
+    args.out_md = _pick_no_env(getattr(args, "out_md", None), "out_md", "outputs/response.md")
+    args.log_run_dir = _pick_no_env(getattr(args, "log_run_dir", None), "log_run_dir", None)
 
     # Validate TOML-provided values with the same CLI validators where applicable.
     if "api_endpoint" in config and args.api_endpoint is not None:
@@ -223,6 +328,8 @@ def _merge_runtime_config(args: argparse.Namespace) -> argparse.Namespace:
         args.out_json = str(args.out_json)
     if "out_md" in config:
         args.out_md = str(args.out_md)
+    if "log_run_dir" in config and args.log_run_dir is not None:
+        args.log_run_dir = str(args.log_run_dir).strip() or None
 
     return args
 
@@ -376,6 +483,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_app_version()}")
     parser.add_argument("--out-json", default=None, help="JSON output path.")
     parser.add_argument("--out-md", default=None, help="Markdown output path.")
+    parser.add_argument("--log-run-dir", default=None, help="Optional directory root for per-run request/response/error artifacts.")
     parser.add_argument("--stream", action="store_true", help="Stream response chunks to stdout when supported by the provider; final JSON/Markdown outputs are still written after completion.")
     parser.add_argument("--strict-capabilities", action="store_true", help="Fail when requested options are unsupported or unknown for the selected provider.")
     parser.add_argument("--dry-run", action="store_true", help="Validate configuration/capabilities and exit without provider execution.")
@@ -408,10 +516,29 @@ def main(argv: list[str] | None = None) -> int:
         except argparse.ArgumentTypeError as exc:
             parser.error(str(exc))
 
+    try:
+        run_log_dir = _create_run_log_dir(args.log_run_dir)
+        _write_run_request_log(
+            run_log_dir=run_log_dir,
+            args=args,
+            prompt_text=prompt_text,
+        )
+    except OSError as exc:
+        print(f"Error: run log directory is not writable: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
+
     # Validate requested capabilities before provider instantiation.
     try:
         provider_spec = get_provider_spec(args.provider)
     except ConfigurationError as exc:
+        try:
+            _write_run_error_log(
+                run_log_dir=run_log_dir,
+                exc=exc,
+                provider=args.provider,
+            )
+        except OSError:
+            pass
         print(f"Error: {exc}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
 
@@ -420,6 +547,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Warning: {warning}", file=sys.stderr)
 
     if errors:
+        try:
+            _write_run_error_log(
+                run_log_dir=run_log_dir,
+                exc=ConfigurationError("; ".join(errors)),
+                provider=args.provider,
+            )
+        except OSError:
+            pass
         for error in errors:
             print(f"Error: capability check failed: {error}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
@@ -435,6 +570,14 @@ def main(argv: list[str] | None = None) -> int:
             max_retries=args.retries,
         )
     except ConfigurationError as exc:
+        try:
+            _write_run_error_log(
+                run_log_dir=run_log_dir,
+                exc=exc,
+                provider=args.provider,
+            )
+        except OSError:
+            pass
         print(f"Error: {exc}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
 
@@ -450,14 +593,34 @@ def main(argv: list[str] | None = None) -> int:
     if args.print_effective_config:
         print(json.dumps(effective_config, indent=2, ensure_ascii=False), file=sys.stderr)
 
+    try:
+        _write_run_request_log(
+            run_log_dir=run_log_dir,
+            args=args,
+            prompt_text=prompt_text,
+            effective_config=effective_config,
+        )
+    except OSError as exc:
+        print(f"Error: run log directory is not writable: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
+
     if args.dry_run:
+        dry_run_payload = {
+            "mode": "dry-run",
+            "status": "ok",
+            "effective_config": effective_config,
+        }
+        try:
+            _write_run_response_log(
+                run_log_dir=run_log_dir,
+                payload=dry_run_payload,
+            )
+        except OSError as exc:
+            print(f"Error: run log directory is not writable: {exc}", file=sys.stderr)
+            return EXIT_RUNTIME_ERROR
         print(
             json.dumps(
-                {
-                    "mode": "dry-run",
-                    "status": "ok",
-                    "effective_config": effective_config,
-                },
+                dry_run_payload,
                 indent=2,
                 ensure_ascii=False,
             )
@@ -492,7 +655,21 @@ def main(argv: list[str] | None = None) -> int:
         write_json(Path(args.out_json), payload)
         write_markdown(Path(args.out_md), payload)
     except PromptRunnerError as exc:
+        try:
+            _write_run_error_log(
+                run_log_dir=run_log_dir,
+                exc=exc,
+                provider=args.provider,
+            )
+        except OSError:
+            pass
         print(f"Error: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
+
+    try:
+        _write_run_response_log(run_log_dir=run_log_dir, payload=payload)
+    except OSError as exc:
+        print(f"Error: run log directory is not writable: {exc}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))

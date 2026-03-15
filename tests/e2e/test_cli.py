@@ -546,6 +546,7 @@ def test_cli_help_documents_prompt_sources_and_exit_codes(capsys) -> None:
     assert "--strict-capabilities" in captured.out
     assert "--dry-run" in captured.out
     assert "--print-effective-config" in captured.out
+    assert "--log-run-dir" in captured.out
     assert "--temperature" in captured.out
     assert "--max-tokens" in captured.out
     assert "--top-p" in captured.out
@@ -728,6 +729,21 @@ def test_resolve_optional_prompt_text_for_dry_run_returns_prompt_file_text() -> 
     """Dry-run helper should return --prompt-file content when prompt arg is absent."""
     args = argparse.Namespace(prompt=None, prompt_file="Hello from file")
     assert cli._resolve_optional_prompt_text_for_dry_run(args) == "Hello from file"
+
+
+def test_effective_prompt_for_hash_handles_none_and_system_layer() -> None:
+    """Hash helper prompt composition must mirror runner semantics."""
+    assert cli._effective_prompt_for_hash(None, None) is None
+    assert cli._effective_prompt_for_hash("Hello", None) == "Hello"
+    assert (
+        cli._effective_prompt_for_hash("Hello", "You are strict.")
+        == "SYSTEM:\nYou are strict.\n\nUSER:\nHello"
+    )
+
+
+def test_prompt_hash_for_log_returns_none_without_prompt() -> None:
+    """Request log hash should be absent when no prompt source exists."""
+    assert cli._prompt_hash_for_log(None, None) is None
 
 
 def test_cli_dry_run_strict_capabilities_rejects_before_provider_creation(
@@ -1030,6 +1046,32 @@ def test_merge_runtime_config_validates_generation_controls_from_config() -> Non
     assert merged.top_p == 0.95
 
 
+def test_merge_runtime_config_accepts_log_run_dir_from_config() -> None:
+    """Config key `log_run_dir` should be accepted and normalized."""
+    args = argparse.Namespace(
+        prompt=None,
+        prompt_file=None,
+        system=None,
+        provider=None,
+        config={"log_run_dir": " logs "},
+        api_endpoint=None,
+        api_key=None,
+        api_model=None,
+        out_json=None,
+        out_md=None,
+        log_run_dir=None,
+        stream=False,
+        timeout=None,
+        retries=None,
+        temperature=None,
+        max_tokens=None,
+        top_p=None,
+    )
+
+    merged = cli._merge_runtime_config(args)
+    assert merged.log_run_dir == "logs"
+
+
 def test_load_config_file_rejects_non_mapping_root(monkeypatch, tmp_path: Path) -> None:
     """Reject a TOML payload whose parsed root is not a mapping."""
     config_file = tmp_path / "config.toml"
@@ -1107,6 +1149,158 @@ def test_cli_stream_falls_back_to_generate_when_provider_has_no_stream(
     assert payload["response"] == "Echo: Hello Fallback"
 
 
+def test_cli_log_run_dir_writes_request_and_response_artifacts(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Write request/response artifacts under a per-run directory."""
+
+    class FakeProviderWithConfig(FakeProvider):
+        def __init__(self) -> None:
+            self.config = argparse.Namespace(
+                endpoint="https://api.openai.com/v1",
+                api_key="super-secret-key",
+                model="gpt-4o-mini",
+                timeout_seconds=30,
+                max_retries=0,
+            )
+
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProviderWithConfig())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+    log_root = tmp_path / "logs"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Logs",
+            "--provider",
+            "openai",
+            "--log-run-dir",
+            str(log_root),
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+    request_payload = json.loads((run_dirs[0] / "request.json").read_text(encoding="utf-8"))
+    response_payload = json.loads((run_dirs[0] / "response.json").read_text(encoding="utf-8"))
+    output_payload = json.loads(out_json.read_text(encoding="utf-8"))
+
+    assert request_payload["prompt_hash"].startswith("sha256:")
+    assert request_payload["effective_config"]["provider"]["api_key"] == "***set***"
+    assert "super-secret-key" not in json.dumps(request_payload, ensure_ascii=False)
+    assert response_payload == output_payload
+
+
+def test_cli_log_run_dir_writes_error_artifact_on_runner_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Write normalized error.json when runner execution fails."""
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            raise cli.PromptRunnerError("runner failed")
+
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Logs Error",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    assert exit_code == 1
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+    assert (run_dirs[0] / "request.json").exists()
+
+    error_payload = json.loads((run_dirs[0] / "error.json").read_text(encoding="utf-8"))
+    assert error_payload["error"]["code"] == "provider_error"
+    assert error_payload["error"]["message"] == "runner failed"
+    assert error_payload["error"]["provider"] == "http"
+
+
+def test_cli_log_run_dir_writes_invalid_request_error_on_strict_capability_failure(
+    tmp_path: Path,
+) -> None:
+    """Strict capability rejection should be logged as invalid_request taxonomy code."""
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Strict",
+            "--provider",
+            "http",
+            "--temperature",
+            "0.2",
+            "--strict-capabilities",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    assert exit_code == 1
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+
+    error_payload = json.loads((run_dirs[0] / "error.json").read_text(encoding="utf-8"))
+    assert error_payload["error"]["code"] == "invalid_request"
+
+
+def test_cli_stream_log_run_dir_response_matches_output_payload(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Stream execution should log the same final payload as regular output artifacts."""
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    out_json = tmp_path / "outputs" / "response.json"
+    out_md = tmp_path / "outputs" / "response.md"
+    log_root = tmp_path / "logs"
+
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello Stream Logs",
+            "--provider",
+            "openai",
+            "--stream",
+            "--log-run-dir",
+            str(log_root),
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ]
+    )
+
+    assert exit_code == 0
+    run_dirs = list(log_root.glob("run-*"))
+    assert len(run_dirs) == 1
+
+    output_payload = json.loads(out_json.read_text(encoding="utf-8"))
+    response_payload = json.loads((run_dirs[0] / "response.json").read_text(encoding="utf-8"))
+    assert response_payload == output_payload
+
+
 def test_cli_module_entrypoint_executes_main_guard(monkeypatch) -> None:
     """Execute module as __main__ to cover the script entrypoint guard."""
     # Ensure module execution does not inherit pytest arguments.
@@ -1117,3 +1311,225 @@ def test_cli_module_entrypoint_executes_main_guard(monkeypatch) -> None:
         runpy.run_module("ai_prompt_runner.cli", run_name="__main__")
 
     assert exc_info.value.code == 2
+
+
+def test_cli_returns_error_when_run_log_dir_creation_fails(monkeypatch, capsys) -> None:
+    """Fail with runtime exit code when log directory cannot be created."""
+    monkeypatch.setattr(cli, "_create_run_log_dir", lambda _: (_ for _ in ()).throw(OSError("no permission")))
+
+    exit_code = cli.main(["--prompt", "Hello", "--provider", "http", "--log-run-dir", "/forbidden"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "run log directory is not writable" in captured.err
+
+
+def test_cli_returns_error_when_second_request_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Fail when enriched request log write fails after provider resolution."""
+    calls = {"count": 0}
+
+    def fake_write_run_request_log(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 2:
+            raise OSError("disk full")
+
+    monkeypatch.setattr(cli, "_write_run_request_log", fake_write_run_request_log)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "run log directory is not writable" in captured.err
+
+
+def test_cli_dry_run_returns_error_when_response_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Dry-run should fail when response log artifact cannot be persisted."""
+    monkeypatch.setattr(cli, "_write_run_response_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--provider",
+            "http",
+            "--api-endpoint",
+            "http://localhost:11434/api/generate",
+            "--api-key",
+            "dummy",
+            "--dry-run",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "run log directory is not writable" in captured.err
+
+
+def test_cli_returns_error_when_final_response_log_write_fails(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Execution should fail when final response log artifact cannot be persisted."""
+    monkeypatch.setattr(cli, "_write_run_response_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "run log directory is not writable" in captured.err
+
+
+def test_cli_provider_spec_failure_ignores_log_error_write_oserror(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Provider-spec failure should still return runtime error when log write fails."""
+    monkeypatch.setattr(
+        cli,
+        "get_provider_spec",
+        lambda _name: (_ for _ in ()).throw(cli.ConfigurationError("Unsupported provider 'unknown'.")),
+    )
+    monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "unknown",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Error: Unsupported provider 'unknown'." in captured.err
+
+
+def test_cli_strict_capability_failure_ignores_log_error_write_oserror(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Strict capability failure should still return runtime error when log write fails."""
+    monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--temperature",
+            "0.2",
+            "--strict-capabilities",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "capability check failed" in captured.err
+
+
+def test_cli_provider_creation_failure_ignores_log_error_write_oserror(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Provider creation failure should still return runtime error when log write fails."""
+    monkeypatch.setattr(
+        cli,
+        "create_provider",
+        lambda **kwargs: (_ for _ in ()).throw(cli.ConfigurationError("invalid provider config")),
+    )
+    monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Error: invalid provider config" in captured.err
+
+
+def test_cli_runner_failure_ignores_log_error_write_oserror(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    """Runner failure should still return runtime error when log write fails."""
+
+    class FakeRunner:
+        def __init__(self, provider) -> None:
+            self.provider = provider
+
+        def run(self, request, on_stream_chunk=None):
+            raise cli.PromptRunnerError("runner failed")
+
+    monkeypatch.setattr(cli, "PromptRunner", FakeRunner)
+    monkeypatch.setattr(cli, "create_provider", lambda **_: FakeProvider())
+    monkeypatch.setattr(cli, "_write_run_error_log", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+
+    log_root = tmp_path / "logs"
+    exit_code = cli.main(
+        [
+            "--prompt",
+            "Hello",
+            "--provider",
+            "http",
+            "--log-run-dir",
+            str(log_root),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Error: runner failed" in captured.err
