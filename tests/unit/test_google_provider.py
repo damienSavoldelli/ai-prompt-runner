@@ -153,6 +153,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
         "ai_prompt_runner.services.google_provider.requests.post",
         lambda *args, **kwargs: DummyResponse(
             {
+                "modelVersion": "gemini-2.5-flash-001",
                 "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
                 "usageMetadata": {
                     "promptTokenCount": 10,
@@ -170,6 +171,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "gemini-2.5-flash-001"
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -501,7 +503,7 @@ def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
         lambda *args, **kwargs: DummyStreamResponse(
             [
                 'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}',
-                'data: {"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":20,"totalTokenCount":30}}',
+                'data: {"modelVersion":"gemini-2.5-flash-001","usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":20,"totalTokenCount":30}}',
                 "data: [DONE]",
             ],
             status_code=200,
@@ -514,6 +516,7 @@ def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "gemini-2.5-flash-001"
 
 
 def test_generate_stream_joins_multiple_text_parts(monkeypatch) -> None:

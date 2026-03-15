@@ -47,3 +47,9 @@ def test_base_get_last_usage_defaults_to_none() -> None:
     """BaseProvider usage hook should return None by default."""
     provider = _DelegatingProvider()
     assert provider.get_last_usage() is None
+
+
+def test_base_get_last_model_resolved_defaults_to_none() -> None:
+    """BaseProvider resolved-model hook should return None by default."""
+    provider = _DelegatingProvider()
+    assert provider.get_last_model_resolved() is None

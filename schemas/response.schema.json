@@ -27,6 +27,9 @@
             "type": "integer",
             "minimum": 0
           },
+          "model": {
+            "type": "string"
+          },
           "usage": {
             "type": "object",
             "additionalProperties": false,
@@ -42,6 +45,76 @@
               "total_tokens": {
                 "type": "integer",
                 "minimum": 0
+              }
+            }
+          },
+          "execution_context": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider_protocol",
+              "api_endpoint",
+              "model_requested",
+              "model_resolved",
+              "runner_version",
+              "prompt_hash",
+              "runtime"
+            ],
+            "properties": {
+              "provider_protocol": {
+                "type": ["string", "null"]
+              },
+              "api_endpoint": {
+                "type": ["string", "null"]
+              },
+              "model_requested": {
+                "type": ["string", "null"]
+              },
+              "model_resolved": {
+                "type": ["string", "null"]
+              },
+              "runner_version": {
+                "type": "string"
+              },
+              "prompt_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "runtime": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "stream",
+                  "system_prompt_provided",
+                  "temperature",
+                  "max_tokens",
+                  "top_p",
+                  "timeout_seconds",
+                  "max_retries"
+                ],
+                "properties": {
+                  "stream": {
+                    "type": "boolean"
+                  },
+                  "system_prompt_provided": {
+                    "type": "boolean"
+                  },
+                  "temperature": {
+                    "type": ["number", "null"]
+                  },
+                  "max_tokens": {
+                    "type": ["integer", "null"]
+                  },
+                  "top_p": {
+                    "type": ["number", "null"]
+                  },
+                  "timeout_seconds": {
+                    "type": ["integer", "null"]
+                  },
+                  "max_retries": {
+                    "type": ["integer", "null"]
+                  }
+                }
               }
             }
           }

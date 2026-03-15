@@ -30,10 +30,12 @@ class GoogleProviderConfig:
 
 class GoogleProvider(BaseProvider):
     """Provider for Gemini generateContent protocol."""
+    provider_protocol = "google-gemini"
 
     def __init__(self, config: GoogleProviderConfig) -> None:
         self.config = config
         self._last_usage: UsageMetadata | None = None
+        self._last_model_resolved: str | None = None
 
     def _normalized_endpoint(self) -> str:
         """
@@ -195,9 +197,25 @@ class GoogleProvider(BaseProvider):
             total_tokens=total_tokens_raw if isinstance(total_tokens_raw, int) else None,
         )
 
+    def _extract_model_resolved(self, payload: dict) -> str | None:
+        """Extract resolved model identifier when Gemini includes it."""
+        if not isinstance(payload, dict):
+            return None
+        model_version = payload.get("modelVersion")
+        if isinstance(model_version, str):
+            return model_version
+        model_value = payload.get("model")
+        if isinstance(model_value, str):
+            return model_value
+        return None
+
     def get_last_usage(self) -> UsageMetadata | None:
         """Expose normalized usage captured during the last provider call."""
         return self._last_usage
+
+    def get_last_model_resolved(self) -> str | None:
+        """Expose resolved model metadata captured during the last provider call."""
+        return self._last_model_resolved
 
     def generate(
         self,
@@ -235,6 +253,7 @@ class GoogleProvider(BaseProvider):
                 payload["generationConfig"] = generation_payload
 
         self._last_usage = None
+        self._last_model_resolved = None
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -258,6 +277,7 @@ class GoogleProvider(BaseProvider):
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
             self._last_usage = self._extract_usage(body)
+            self._last_model_resolved = self._extract_model_resolved(body)
             return self._extract_text(body)
 
         # Defensive fallback: loop always returns or raises.
@@ -305,6 +325,7 @@ class GoogleProvider(BaseProvider):
                 payload["generationConfig"] = generation_payload
 
         self._last_usage = None
+        self._last_model_resolved = None
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False
@@ -342,6 +363,10 @@ class GoogleProvider(BaseProvider):
                     event_usage = self._extract_usage(event)
                     if event_usage is not None:
                         self._last_usage = event_usage
+
+                    event_model = self._extract_model_resolved(event)
+                    if event_model is not None:
+                        self._last_model_resolved = event_model
 
                     delta_text = self._extract_stream_delta(event)
                     if delta_text is None:

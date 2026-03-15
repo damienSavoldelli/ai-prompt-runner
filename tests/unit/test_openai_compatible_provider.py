@@ -179,6 +179,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
         lambda *args, **kwargs: DummyResponse(
             {
                 "choices": [{"message": {"content": "ok"}}],
+                "model": "gpt-4o-mini-2026-02-15",
                 "usage": {
                     "prompt_tokens": 10,
                     "completion_tokens": 20,
@@ -195,6 +196,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "gpt-4o-mini-2026-02-15"
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -491,7 +493,7 @@ def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
         lambda *args, **kwargs: DummyStreamResponse(
             [
                 'data: {"choices":[{"delta":{"content":"ok"}}]}',
-                'data: {"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}',
+                'data: {"model":"gpt-4o-mini-2026-02-15","usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}',
                 "data: [DONE]",
             ],
             status_code=200,
@@ -504,6 +506,7 @@ def test_generate_stream_extracts_usage_metadata(monkeypatch) -> None:
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "gpt-4o-mini-2026-02-15"
 
 
 def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:

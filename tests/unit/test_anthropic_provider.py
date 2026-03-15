@@ -154,6 +154,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
         lambda *args, **kwargs: DummyResponse(
             {
                 "content": [{"type": "text", "text": "ok"}],
+                "model": "claude-3-7-sonnet-20260219",
                 "usage": {"input_tokens": 10, "output_tokens": 20},
             },
             status_code=200,
@@ -166,6 +167,7 @@ def test_generate_extracts_usage_metadata(monkeypatch) -> None:
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "claude-3-7-sonnet-20260219"
 
 
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
@@ -465,7 +467,7 @@ def test_generate_stream_merges_usage_updates_from_multiple_events(monkeypatch) 
         "ai_prompt_runner.services.anthropic_provider.requests.post",
         lambda *args, **kwargs: DummyStreamResponse(
             [
-                'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+                'data: {"type":"message_start","message":{"model":"claude-3-7-sonnet-20260219","usage":{"input_tokens":10}}}',
                 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}',
                 'data: {"type":"message_delta","usage":{"output_tokens":20}}',
                 "data: [DONE]",
@@ -480,6 +482,7 @@ def test_generate_stream_merges_usage_updates_from_multiple_events(monkeypatch) 
     assert usage.prompt_tokens == 10
     assert usage.completion_tokens == 20
     assert usage.total_tokens == 30
+    assert provider.get_last_model_resolved() == "claude-3-7-sonnet-20260219"
 
 
 def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:

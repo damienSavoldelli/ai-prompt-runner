@@ -33,6 +33,7 @@ class HTTPProvider(BaseProvider):
     Request JSON: {"model": "...", "prompt": "..."}
     Response JSON: {"response": "..."}
     """
+    provider_protocol = "http-json"
 
     def __init__(self, config: HTTPProviderConfig) -> None:
         self.config = config

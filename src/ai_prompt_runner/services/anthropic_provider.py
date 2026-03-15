@@ -31,10 +31,12 @@ class AnthropicProviderConfig:
 
 class AnthropicProvider(BaseProvider):
     """Provider for Anthropic's Messages API contract."""
+    provider_protocol = "anthropic-messages"
 
     def __init__(self, config: AnthropicProviderConfig) -> None:
         self.config = config
         self._last_usage: UsageMetadata | None = None
+        self._last_model_resolved: str | None = None
 
     def _raise_for_mapped_status(self, response: requests.Response) -> None:
         """Map provider HTTP status codes to domain-specific exceptions."""
@@ -162,6 +164,23 @@ class AnthropicProvider(BaseProvider):
             total_tokens=total_tokens,
         )
 
+    def _extract_model_resolved(self, payload: dict) -> str | None:
+        """Extract resolved model identifier when Anthropic includes it."""
+        if not isinstance(payload, dict):
+            return None
+
+        model_value = payload.get("model")
+        if isinstance(model_value, str):
+            return model_value
+
+        message_obj = payload.get("message")
+        if isinstance(message_obj, dict):
+            nested_model = message_obj.get("model")
+            if isinstance(nested_model, str):
+                return nested_model
+
+        return None
+
     def _merge_usage(self, usage_update: UsageMetadata) -> None:
         """
         Merge partial Anthropic stream usage updates into one normalized object.
@@ -200,6 +219,10 @@ class AnthropicProvider(BaseProvider):
         """Expose normalized usage captured during the last provider call."""
         return self._last_usage
 
+    def get_last_model_resolved(self) -> str | None:
+        """Expose resolved model metadata captured during the last provider call."""
+        return self._last_model_resolved
+
     def generate(
         self,
         prompt: str,
@@ -228,6 +251,7 @@ class AnthropicProvider(BaseProvider):
                 payload["top_p"] = generation_config.top_p
 
         self._last_usage = None
+        self._last_model_resolved = None
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -251,6 +275,7 @@ class AnthropicProvider(BaseProvider):
                 raise ProviderError("Provider returned invalid JSON.") from exc
 
             self._last_usage = self._extract_usage(body)
+            self._last_model_resolved = self._extract_model_resolved(body)
             return self._extract_text(body)
 
         # Defensive fallback: loop always returns or raises.
@@ -291,6 +316,7 @@ class AnthropicProvider(BaseProvider):
                 payload["top_p"] = generation_config.top_p
 
         self._last_usage = None
+        self._last_model_resolved = None
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False
@@ -332,6 +358,10 @@ class AnthropicProvider(BaseProvider):
                             event_usage = self._extract_usage(message)
                     if event_usage is not None:
                         self._merge_usage(event_usage)
+
+                    event_model = self._extract_model_resolved(event)
+                    if event_model is not None:
+                        self._last_model_resolved = event_model
 
                     delta_text = self._extract_stream_delta(event)
                     if delta_text is None:
