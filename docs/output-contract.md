@@ -34,8 +34,14 @@ The normalized response payload has this shape:
   "prompt": "Hello world",
   "response": "Echo: Hello world",
   "metadata": {
-    "provider": "http",
-    "timestamp_utc": "2026-02-18T13:43:51.236575+00:00"
+    "provider": "openai",
+    "timestamp_utc": "2026-03-15T10:21:11.236575+00:00",
+    "execution_ms": 412,
+    "usage": {
+      "prompt_tokens": 32,
+      "completion_tokens": 41,
+      "total_tokens": 73
+    }
   }
 }
 ```
@@ -67,6 +73,10 @@ Required fields:
 - `provider`
 - `timestamp_utc`
 
+Optional fields:
+- `execution_ms`
+- `usage`
+
 ### `metadata.provider`
 
 Identifier of the provider implementation used to generate the response.
@@ -92,11 +102,37 @@ Format:
 Example:
 - `2026-02-18T13:43:51.236575+00:00`
 
+### `metadata.execution_ms`
+
+Execution duration measured by the runner in milliseconds.
+
+Type:
+- `integer`
+
+Constraints:
+- must be greater than or equal to `0`
+
+### `metadata.usage`
+
+Optional normalized token usage object captured from providers when available.
+
+Type:
+- `object`
+
+Known fields:
+- `prompt_tokens` (`integer`, optional)
+- `completion_tokens` (`integer`, optional)
+- `total_tokens` (`integer`, optional)
+
+Notes:
+- `usage` may be absent when upstream providers do not expose token counters.
+- when present, usage fields are normalized to provider-agnostic names.
+
 ## Validation Model
 
 The contract is validated through two layers:
 
-1. Runtime validation in [`src/core/validators.py`](../src/core/validators.py)
+1. Runtime validation in [`src/ai_prompt_runner/core/validators.py`](../src/ai_prompt_runner/core/validators.py)
 2. Schema validation in automated tests using [`schemas/response.schema.json`](../schemas/response.schema.json)
 
 This dual approach keeps runtime behavior explicit while also freezing the contract through a standard schema artifact.

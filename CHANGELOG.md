@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.4.0] - 2026-03-15
+
+### Added
+
+- Added runtime generation controls:
+    - `--temperature`
+    - `--max-tokens`
+    - `--top-p`
+- Added optional runtime controls to TOML config (`temperature`, `max_tokens`, `top_p`) with CLI precedence unchanged.
+- Added execution metadata to normalized JSON payload:
+    - `metadata.execution_ms`
+    - optional `metadata.usage` with normalized token counters
+- Added provider usage hook in the provider contract (`get_last_usage`) for optional token accounting.
+- Added provider-level runtime control mapping and usage normalization across:
+    - OpenAI-compatible protocol provider
+    - Anthropic Messages provider
+    - Google Gemini provider
+
+### Changed
+
+- Updated runner orchestration to forward optional generation controls in both non-stream and stream execution paths.
+- Updated JSON schema and runtime validators to support additive metadata fields (`execution_ms`, `usage`) without breaking existing contract keys.
+- Expanded test coverage for runtime controls, usage extraction, stream/non-stream invariants, and metadata validation paths.
+- Updated technical documentation to reflect v1.4 runtime controls and metadata behavior.
+
+### Notes
+
+- `v1.4.0` is a stable feature release focused on observability and runtime control.
+- No CLI breaking changes.
+- No stateless-execution boundary changes.
+
 ## [v1.3.0] - 2026-03-15
 
 ### Added
