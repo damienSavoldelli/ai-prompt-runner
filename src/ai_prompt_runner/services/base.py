@@ -15,13 +15,22 @@ class BaseProvider(ABC):
     """
 
     @abstractmethod
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Generate response text from the provided prompt."""
         raise NotImplementedError
 
-    def generate_stream(self, prompt: str) -> Iterator[str]:
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+    ) -> Iterator[str]:
         """
         Stream response chunks from the provided prompt.
-        Providers that do not support streaming should keep this default behavior so callers can explicitly fallback to non-stream execution.
+
+        `system_prompt` is optional and represents one-shot instruction context
+        for providers that support role-aware prompting.
+
+        Providers that do not support streaming should keep this default
+        behavior so callers can explicitly fallback to non-stream execution.
         """
         raise NotImplementedError("Streaming is not supported by this provider.")

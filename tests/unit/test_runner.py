@@ -9,11 +9,17 @@ from ai_prompt_runner.services.base import BaseProvider
 class FakeProvider(BaseProvider):
     """Test double implementing the provider contract without network I/O."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+        if system_prompt is not None:
+            return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str):
+    def generate_stream(self, prompt: str, system_prompt: str | None = None):
         """Yield deterministic chunks for stream-path runner tests."""
+        if system_prompt is not None:
+            yield f"SYSTEM={system_prompt} | "
+            yield f"USER={prompt}"
+            return
         yield "Echo: "
         yield prompt
 
@@ -21,17 +27,19 @@ class FakeProvider(BaseProvider):
 class FakeNoStreamProvider(BaseProvider):
     """Provider stub that explicitly does not support streaming."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+        if system_prompt is not None:
+            return f"Echo: SYSTEM={system_prompt} | USER={prompt}"
         return f"Echo: {prompt}"
 
 
 class FakeInvalidStreamChunkProvider(BaseProvider):
     """Provider stub emitting a non-string stream chunk for guard-rail coverage."""
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         return f"Echo: {prompt}"
 
-    def generate_stream(self, prompt: str):
+    def generate_stream(self, prompt: str, system_prompt: str | None = None):
         # Intentionally invalid chunk type to validate runner-level guard.
         yield 123
 
@@ -103,6 +111,37 @@ def test_runner_stream_and_non_stream_payloads_match_except_timestamp() -> None:
     stream_payload["metadata"]["timestamp_utc"] = "<normalized>"
 
     assert stream_payload == non_stream_payload
+
+
+def test_runner_forwards_system_prompt_to_generate() -> None:
+    """Forward one-shot system instruction in non-stream execution mode."""
+    runner = PromptRunner(provider=FakeProvider())
+
+    payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            system_prompt="You are strict.",
+        )
+    )
+
+    assert payload["response"] == "Echo: SYSTEM=You are strict. | USER=Hello"
+
+
+def test_runner_forwards_system_prompt_to_generate_stream() -> None:
+    """Forward one-shot system instruction in stream execution mode."""
+    runner = PromptRunner(provider=FakeProvider())
+
+    payload = runner.run(
+        PromptRequest(
+            prompt_text="Hello",
+            provider="fake",
+            system_prompt="You are strict.",
+            stream=True,
+        )
+    )
+
+    assert payload["response"] == "SYSTEM=You are strict. | USER=Hello"
 
 
 def test_runner_stream_falls_back_when_provider_does_not_support_stream() -> None:

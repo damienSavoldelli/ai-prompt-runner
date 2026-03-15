@@ -165,7 +165,7 @@ class GoogleProvider(BaseProvider):
             return None
         return "".join(text_chunks)
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Send one prompt to Gemini and return generated text."""
         headers = {
             "x-goog-api-key": self.config.api_key,
@@ -180,6 +180,10 @@ class GoogleProvider(BaseProvider):
                 }
             ]
         }
+        if system_prompt is not None:
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_prompt}],
+            }
 
         # Retry only transient transport failures.
         for attempt in range(self.config.max_retries + 1):
@@ -207,7 +211,11 @@ class GoogleProvider(BaseProvider):
         # Defensive fallback: loop always returns or raises.
         raise ProviderError("Provider request failed unexpectedly.")
 
-    def generate_stream(self, prompt: str) -> Iterator[str]:
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+    ) -> Iterator[str]:
         """
         Stream generated text chunks from Google Gemini.
 
@@ -228,6 +236,10 @@ class GoogleProvider(BaseProvider):
                 }
             ]
         }
+        if system_prompt is not None:
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_prompt}],
+            }
 
         for attempt in range(self.config.max_retries + 1):
             emitted_any_chunk = False

@@ -11,6 +11,9 @@ class PromptRequest:
 
     prompt_text: str
     provider: str
+    # Optional one-shot instruction layer applied before the user prompt.
+    # This keeps execution stateless while allowing stricter prompt control.
+    system_prompt: str | None = None
     stream: bool = False
     
 @dataclass(frozen=True)

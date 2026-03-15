@@ -207,6 +207,11 @@ def build_parser() -> argparse.ArgumentParser:
     prompt_group = parser.add_mutually_exclusive_group(required=False)
     prompt_group.add_argument( "--prompt", type=_non_blank_text, help="Prompt text to send (mutually exclusive with --prompt-file).")
     prompt_group.add_argument( "--prompt-file", type=_prompt_file_text, help="Path to a UTF-8 text file containing the prompt (mutually exclusive with --prompt).")
+    parser.add_argument(
+        "--system",
+        type=_non_blank_text,
+        help="Optional one-shot system instruction applied before the prompt.",
+    )
     parser.add_argument("--provider", default=None, help="Provider name (currently: http).")
     parser.add_argument( "--config", type=_load_config_file, help="Path to a TOML config file (optional; CLI overrides env and config).")
     parser.add_argument( "--api-endpoint", type=_http_url, help=f"AI API endpoint URL (env AI_API_ENDPOINT: {endpoint_preview}).")
@@ -263,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             PromptRequest(
                 prompt_text=prompt_text,
                 provider=args.provider,
+                system_prompt=args.system,
                 stream=args.stream,
             )
             ,

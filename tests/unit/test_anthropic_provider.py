@@ -91,6 +91,27 @@ def test_generate_returns_text_for_valid_response_shape(monkeypatch) -> None:
     assert observed["timeout"] == 5
 
 
+def test_generate_includes_system_field_when_provided(monkeypatch) -> None:
+    """System prompt must be forwarded through Anthropic `system` payload field."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout):
+        observed["payload"] = json
+        return DummyResponse(
+            {"content": [{"type": "text", "text": "ok"}]},
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        fake_post,
+    )
+
+    assert provider.generate("hello", system_prompt="You are strict.") == "ok"
+    assert observed["payload"]["system"] == "You are strict."
+
+
 def test_generate_retries_then_succeeds(monkeypatch) -> None:
     """Transient transport errors should be retried up to max_retries."""
     provider = _make_provider(max_retries=2)
@@ -318,6 +339,30 @@ def test_generate_stream_yields_chunks_and_enables_stream_flag(monkeypatch) -> N
     assert observed["json"]["stream"] is True
     assert observed["stream"] is True
     assert observed["timeout"] == 5
+
+
+def test_generate_stream_includes_system_field_when_provided(monkeypatch) -> None:
+    """Stream payload must include Anthropic `system` when system_prompt is provided."""
+    provider = _make_provider()
+    observed = {}
+
+    def fake_post(url, headers, json, timeout, stream):
+        observed["payload"] = json
+        return DummyStreamResponse(
+            [
+                'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}',
+                "data: [DONE]",
+            ],
+            status_code=200,
+        )
+
+    monkeypatch.setattr(
+        "ai_prompt_runner.services.anthropic_provider.requests.post",
+        fake_post,
+    )
+
+    assert list(provider.generate_stream("hello", system_prompt="You are strict.")) == ["ok"]
+    assert observed["payload"]["system"] == "You are strict."
 
 
 def test_generate_stream_ignores_blank_and_non_data_lines(monkeypatch) -> None:

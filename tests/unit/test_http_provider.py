@@ -51,6 +51,31 @@ def test_generate_retries_then_succeeds(monkeypatch) -> None:
     assert calls["count"] == 3
 
 
+def test_generate_includes_system_prompt_in_effective_payload(monkeypatch) -> None:
+    """HTTP provider should concatenate system+user prompt for non-role-aware APIs."""
+    provider = HTTPProvider(
+        HTTPProviderConfig(
+            endpoint="http://example.test/api",
+            api_key="dummy",
+            model="m1",
+            timeout_seconds=5,
+            max_retries=0,
+        )
+    )
+    observed = {}
+
+    def fake_post(*args, **kwargs):
+        observed["json"] = kwargs["json"]
+        return DummyResponse({"response": "ok"})
+
+    monkeypatch.setattr("ai_prompt_runner.services.http_provider.requests.post", fake_post)
+
+    result = provider.generate("hello", system_prompt="You are strict.")
+
+    assert result == "ok"
+    assert observed["json"]["prompt"] == "SYSTEM:\nYou are strict.\n\nUSER:\nhello"
+
+
 def test_generate_fails_after_retry_exhausted(monkeypatch) -> None:
     """Test that if the provider call fails with a transient error and we exhaust all retries, we raise a ProviderError."""
     provider = HTTPProvider(
