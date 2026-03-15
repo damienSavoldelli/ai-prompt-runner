@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.7.0] - 2026-03-15
+
+### Added
+
+- Added core runtime error taxonomy normalization with stable codes:
+    - `auth_error`
+    - `rate_limit`
+    - `timeout`
+    - `invalid_request`
+    - `network_error`
+    - `provider_error`
+- Added per-run observability artifact support via `--log-run-dir`:
+    - `request.json` (sanitized diagnostics)
+    - `response.json` on success
+    - `error.json` on runtime failure
+- Added structured error payload generation for runtime failures using normalized taxonomy.
+
+### Changed
+
+- Extended runtime config support to include `log_run_dir` in TOML/CLI resolution.
+- Updated documentation for v1.7 observability features:
+    - `README.md`
+    - `docs/cli-reference.md`
+    - `docs/architecture.md`
+    - `docs/configuration.md`
+- Expanded unit and E2E coverage for error taxonomy classification and run-log artifact behavior.
+
+### Notes
+
+- `v1.7.0` is a stable observability release focused on CI/ops diagnostics.
+- No CLI breaking changes.
+- No output contract/schema breaking changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.6.2] - 2026-03-15
 
 ### Changed
