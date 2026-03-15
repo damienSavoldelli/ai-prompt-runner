@@ -59,6 +59,7 @@ timeout = 30
 retries = 0
 out_json = "outputs/response.json"
 out_md = "outputs/response.md"
+log_run_dir = "logs"
 ```
 
 Supported TOML keys:
@@ -73,6 +74,7 @@ Supported TOML keys:
 - `retries`
 - `out_json`
 - `out_md`
+- `log_run_dir`
 
 CLI-only runtime flags (not supported in env/TOML):
 
@@ -214,6 +216,12 @@ Safety-mode note:
 - `--strict-capabilities`, `--dry-run`, and `--print-effective-config` are intentionally CLI-only.
 - these flags control per-execution safety and diagnostics, not persistent runtime defaults.
 - `--dry-run` validates resolved config/capabilities and exits without provider generation.
+
+Execution log note:
+
+- `log_run_dir` is supported in TOML and CLI.
+- per-run artifacts include `request.json` and either `response.json` or `error.json`.
+- request artifacts are sanitized and never include raw API keys.
 
 ## Related Documentation
 

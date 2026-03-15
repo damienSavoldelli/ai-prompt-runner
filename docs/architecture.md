@@ -44,6 +44,7 @@ The core layer contains the stable execution logic:
 - [`src/ai_prompt_runner/core/runner.py`](../src/ai_prompt_runner/core/runner.py): stateless prompt execution orchestration
 - [`src/ai_prompt_runner/core/validators.py`](../src/ai_prompt_runner/core/validators.py): normalized payload validation
 - [`src/ai_prompt_runner/core/errors.py`](../src/ai_prompt_runner/core/errors.py): project-level error hierarchy
+- [`src/ai_prompt_runner/core/error_taxonomy.py`](../src/ai_prompt_runner/core/error_taxonomy.py): normalized runtime error taxonomy mapping
 
 The runner assumes a provider implementation that conforms to the provider contract and returns response text for a single prompt execution.
 
@@ -53,6 +54,12 @@ Runtime metadata is also produced in the core layer:
 - `model` is emitted from resolved provider metadata (fallback to requested model)
 - `execution_context` is assembled in the runner as a reproducibility snapshot
 - optional normalized `usage` is read from providers through the provider contract hook
+
+Runtime error normalization is centralized in the core layer:
+
+- provider/runtime exceptions are mapped to stable taxonomy codes
+- taxonomy is used by CLI diagnostics and run-log failure artifacts (`error.json`)
+- process exit codes stay stable (`0/1/2`)
 
 ## Provider Contract
 
@@ -122,6 +129,12 @@ Preflight behavior:
 
 - `--dry-run` validates config resolution and capabilities without provider generation
 - `--print-effective-config` emits masked, resolved runtime diagnostics for CI/ops debugging
+
+Execution observability behavior:
+
+- `--log-run-dir` writes per-run artifacts (`request.json`, `response.json`, `error.json`)
+- request artifacts are sanitized (no raw API key persistence)
+- logging is additive and does not change normalized output schema
 
 ## Output Contract
 
