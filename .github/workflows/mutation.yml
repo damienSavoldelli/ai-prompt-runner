@@ -1,0 +1,89 @@
+name: CI - Mutation Testing (Non-Blocking)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 4 * * 1"
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[dev]"
+
+      - name: Run mutation session
+        run: |
+          rm -f cr-session.sqlite cosmic-ray-results.ndjson mutation-summary.md
+          cosmic-ray baseline cosmic-ray.toml
+          cosmic-ray init cosmic-ray.toml cr-session.sqlite
+          cosmic-ray exec cosmic-ray.toml cr-session.sqlite
+          cosmic-ray dump cr-session.sqlite > cosmic-ray-results.ndjson
+
+      - name: Build mutation summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          path = Path("cosmic-ray-results.ndjson")
+          counts: Counter[str] = Counter()
+          total = 0
+          if path.exists():
+              for raw_line in path.read_text(encoding="utf-8").splitlines():
+                  line = raw_line.strip()
+                  if not line:
+                      continue
+                  row = json.loads(line)
+                  if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], dict):
+                      outcome = row[1].get("test_outcome", "unknown")
+                      counts[outcome] += 1
+                      total += 1
+
+          killed = counts.get("killed", 0)
+          survived = counts.get("survived", 0)
+          timeout = counts.get("timeout", 0)
+          incompetent = counts.get("incompetent", 0)
+          score = (killed / total * 100.0) if total else 0.0
+
+          summary = (
+              "# Mutation Summary\\n\\n"
+              f"- total_mutants: {total}\\n"
+              f"- killed: {killed}\\n"
+              f"- survived: {survived}\\n"
+              f"- timeout: {timeout}\\n"
+              f"- incompetent: {incompetent}\\n"
+              f"- mutation_score_percent: {score:.2f}\\n"
+          )
+
+          Path("mutation-summary.md").write_text(summary, encoding="utf-8")
+          print(summary)
+          PY
+
+      - name: Upload mutation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-results
+          path: |
+            cosmic-ray-results.ndjson
+            mutation-summary.md
+            cr-session.sqlite

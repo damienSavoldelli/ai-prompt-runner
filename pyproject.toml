@@ -47,6 +47,7 @@ Issues = "https://github.com/damienSavoldelli/ai-prompt-runner/issues"
 [project.optional-dependencies]
 dev = [
     "build==1.3.0",
+    "cosmic-ray==8.4.4",
     "jsonschema[format-nongpl]==4.25.1",
     "pytest==9.0.2",
     "pytest-cov==7.0.0",

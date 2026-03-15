@@ -722,6 +722,17 @@ python3 -m pytest --cov=src --cov-report=term-missing --cov-fail-under=95
 
 Open `htmlcov/index.html` in a browser to inspect file-by-file coverage.
 
+Mutation testing (non-blocking):
+
+```bash
+cosmic-ray baseline cosmic-ray.toml
+cosmic-ray init cosmic-ray.toml cr-session.sqlite
+cosmic-ray exec cosmic-ray.toml cr-session.sqlite
+cosmic-ray dump cr-session.sqlite > cosmic-ray-results.ndjson
+```
+
+See [`docs/testing.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/testing.md) for scope and interpretation details.
+
 ## Lint
 
 ```bash
