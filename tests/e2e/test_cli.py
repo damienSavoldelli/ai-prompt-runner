@@ -718,6 +718,18 @@ def test_cli_dry_run_succeeds_without_prompt_and_without_runner(monkeypatch, cap
     assert payload["effective_config"]["request"]["prompt_provided"] is False
 
 
+def test_resolve_optional_prompt_text_for_dry_run_prefers_prompt_argument() -> None:
+    """Dry-run helper should return --prompt when provided."""
+    args = argparse.Namespace(prompt="Hello", prompt_file=None)
+    assert cli._resolve_optional_prompt_text_for_dry_run(args) == "Hello"
+
+
+def test_resolve_optional_prompt_text_for_dry_run_returns_prompt_file_text() -> None:
+    """Dry-run helper should return --prompt-file content when prompt arg is absent."""
+    args = argparse.Namespace(prompt=None, prompt_file="Hello from file")
+    assert cli._resolve_optional_prompt_text_for_dry_run(args) == "Hello from file"
+
+
 def test_cli_dry_run_strict_capabilities_rejects_before_provider_creation(
     monkeypatch,
     capsys,
@@ -753,6 +765,21 @@ def test_cli_dry_run_strict_capabilities_rejects_before_provider_creation(
         "Error: capability check failed: provider 'http' reports capability "
         "'temperature' as unsupported."
     ) in captured.err
+
+
+def test_cli_returns_error_when_provider_spec_lookup_fails(monkeypatch, capsys) -> None:
+    """Return runtime error when provider spec lookup fails before provider creation."""
+
+    def fake_get_provider_spec(_provider_name: str):
+        raise cli.ConfigurationError("Unsupported provider 'unknown'.")
+
+    monkeypatch.setattr(cli, "get_provider_spec", fake_get_provider_spec)
+
+    exit_code = cli.main(["--prompt", "Hello", "--provider", "unknown"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Error: Unsupported provider 'unknown'." in captured.err
 
 
 def test_cli_print_effective_config_masks_api_key(monkeypatch, tmp_path: Path, capsys) -> None:
