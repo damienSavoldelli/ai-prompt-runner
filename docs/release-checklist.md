@@ -6,6 +6,8 @@ This checklist defines the standard release preparation flow for `ai-prompt-runn
 
 It is intended to reduce release mistakes, keep versioning disciplined, and ensure that each release is backed by validated code, packaging, and documentation.
 
+For runtime incident triage after release, see [`docs/ops-runbook.md`](./ops-runbook.md).
+
 ## Pre-Release Validation
 
 Run these checks from the repository root before preparing a release:

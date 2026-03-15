@@ -63,6 +63,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Versioning](#versioning)
 - [Release Notes](#release-notes)
 - [Release Checklist](#release-checklist)
+- [Ops Runbook](#ops-runbook)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
@@ -557,6 +558,7 @@ Root/
 │   ├── cli-reference.md
 │   ├── configuration.md
 │   ├── migration.md
+│   ├── ops-runbook.md
 │   ├── output-contract.md
 │   ├── release-checklist.md
 │   └── testing.md
@@ -592,6 +594,7 @@ Additional versioned technical documentation is available under [`docs/`](https:
 - [`docs/architecture.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/architecture.md)
 - [`docs/cli-reference.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/cli-reference.md)
 - [`docs/configuration.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/configuration.md)
+- [`docs/ops-runbook.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/ops-runbook.md)
 - [`docs/output-contract.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/output-contract.md)
 - [`docs/testing.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/testing.md)
 - [`docs/migration.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/migration.md)
@@ -763,6 +766,10 @@ See [`CHANGELOG.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/m
 ## Release Checklist
 
 See [`docs/release-checklist.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/release-checklist.md) for the standardized release preparation flow.
+
+## Ops Runbook
+
+See [`docs/ops-runbook.md`](https://github.com/damienSavoldelli/ai-prompt-runner/blob/main/docs/ops-runbook.md) for quick CI/runtime incident triage and error-code action mapping.
 
 ## Troubleshooting
 
