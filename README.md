@@ -7,6 +7,10 @@
 
 Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
 
+- PyPI: [ai-prompt-runner](https://pypi.org/project/ai-prompt-runner/)
+- Documentation: [docs/](https://github.com/damienSavoldelli/ai-prompt-runner/tree/main/docs)
+- Project page: [AI Prompt Runner](https://nutritious-ringer-9ec.notion.site/AI-Prompt-Runner-30ca11bd93a28009bde3fb280d7179fd)
+
 ## Design Philosophy
 
 ai-prompt-runner is intentionally designed as a stateless execution layer:
