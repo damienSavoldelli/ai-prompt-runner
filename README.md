@@ -600,6 +600,16 @@ Root/
 
 ## Architecture Principles
 
+```text
+Prompt Input
+   ↓
+ai-prompt-runner (CLI)
+   ↓
+Provider API Call
+   ↓
+Structured Output (JSON + Markdown)
+```
+
 - `src/ai_prompt_runner/cli.py`: argument parsing and process-level I/O only.
 - `src/ai_prompt_runner/core/`: business rules and payload validation.
 - `src/ai_prompt_runner/services/`: external integrations (AI provider implementations).
