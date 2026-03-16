@@ -21,10 +21,12 @@ export AI_API_KEY="your_api_key"
 ai-prompt-runner --provider openai --prompt "Explain retry logic"
 ```
 
-Outputs are written to:
+By default, generated outputs are written to:
 
 - `outputs/response.json`
 - `outputs/response.md`
+
+The `outputs/` directory is created relative to the current working directory.
 
 ## Design Philosophy
 
