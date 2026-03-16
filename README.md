@@ -5,11 +5,26 @@
 [![Python](https://img.shields.io/pypi/pyversions/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 [![License](https://img.shields.io/pypi/l/ai-prompt-runner)](https://pypi.org/project/ai-prompt-runner/)
 
-Modular Python CLI that sends prompts to an AI API and saves outputs as JSON and Markdown.
+AI Prompt Runner is a Python CLI designed to execute prompts across multiple AI providers and generate deterministic structured outputs (JSON and Markdown).
+
+It acts as a stateless execution layer for prompt automation in scripts, CI pipelines, and reproducible AI workflows.
 
 - PyPI: [ai-prompt-runner](https://pypi.org/project/ai-prompt-runner/)
 - Documentation: [docs/](https://github.com/damienSavoldelli/ai-prompt-runner/tree/main/docs)
 - Project page: [AI Prompt Runner](https://nutritious-ringer-9ec.notion.site/AI-Prompt-Runner-30ca11bd93a28009bde3fb280d7179fd)
+
+## Quick Start
+
+```bash
+pipx install ai-prompt-runner
+export AI_API_KEY="your_api_key"
+ai-prompt-runner --provider openai --prompt "Explain retry logic"
+```
+
+Outputs are written to:
+
+- `outputs/response.json`
+- `outputs/response.md`
 
 ## Design Philosophy
 
@@ -44,6 +59,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Design Philosophy](#design-philosophy)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Quick Start](#quick-start)
 - [uv Workflow](#uv-workflow)
 - [Environment Variables](#environment-variables)
 - [Configuration File (Optional)](#configuration-file-optional)
