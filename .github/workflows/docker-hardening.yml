@@ -1,0 +1,42 @@
+name: CI - Docker Hardening (Non-Blocking)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-hardening:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Dockerfile lint (hadolint)
+        run: docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < Dockerfile
+
+      - name: Build runtime Docker image
+        run: docker build --target runtime -t ai-prompt-runner:runtime .
+
+      - name: Image size sanity check
+        run: |
+          IMAGE_SIZE_BYTES="$(docker image inspect ai-prompt-runner:runtime --format='{{.Size}}')"
+          MAX_IMAGE_SIZE_BYTES=300000000
+          echo "image_size_bytes=${IMAGE_SIZE_BYTES}" >> "$GITHUB_STEP_SUMMARY"
+          echo "image_size_mb=$((IMAGE_SIZE_BYTES / 1024 / 1024))" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$IMAGE_SIZE_BYTES" -gt "$MAX_IMAGE_SIZE_BYTES" ]; then
+            echo "::warning::Runtime image exceeds sanity threshold (${MAX_IMAGE_SIZE_BYTES} bytes)."
+          fi
+
+      - name: Vulnerability scan (Trivy)
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.61.0 \
+            image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            ai-prompt-runner:runtime

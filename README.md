@@ -182,6 +182,28 @@ Run package build in the dev container:
 docker run --rm ai-prompt-runner:dev python3 -m build
 ```
 
+Run Dockerfile lint locally (hadolint):
+
+```bash
+docker run --rm -i hadolint/hadolint hadolint --failure-threshold error - < Dockerfile
+```
+
+Run vulnerability scan locally (Trivy):
+
+```bash
+docker build --target runtime -t ai-prompt-runner:runtime .
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy:0.61.0 \
+  image \
+  --severity HIGH,CRITICAL \
+  --ignore-unfixed \
+  ai-prompt-runner:runtime
+```
+
+The Docker base image is pinned by digest in `Dockerfile` for reproducibility.
+Refresh it intentionally when updating Python patch levels.
+
 ## uv Workflow
 
 `uv` is supported as the modern dependency and task runner workflow for local development.
@@ -862,6 +884,8 @@ Pipeline includes:
 - package build verification (`python3 -m build`)
 - build artifact verification
 - tests with coverage enforcement (`--cov-fail-under=95`)
+- Docker smoke build/run check (`docker-smoke` job)
+- Docker hardening checks (`docker-hardening` workflow: hadolint + Trivy, non-blocking)
 
 `uv` is supported for local development workflows, while CI currently installs dependencies with `pip install -e ".[dev]"`.
 
