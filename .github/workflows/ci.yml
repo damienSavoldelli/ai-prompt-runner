@@ -57,3 +57,16 @@ jobs:
             --cov=src \
             --cov-report=term-missing \
             --cov-fail-under=95
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build runtime Docker image
+        run: docker build --target runtime -t ai-prompt-runner:runtime .
+
+      - name: Smoke test CLI in Docker
+        run: docker run --rm ai-prompt-runner:runtime --version

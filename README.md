@@ -62,6 +62,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Docker Workflow](#docker-workflow)
 - [uv Workflow](#uv-workflow)
 - [Environment Variables](#environment-variables)
 - [Configuration File (Optional)](#configuration-file-optional)
@@ -127,6 +128,51 @@ Install from source for development:
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
+```
+
+## Docker Workflow
+
+Docker support is provided for reproducible runtime execution and development validation.
+
+Build runtime image:
+
+```bash
+docker build --target runtime -t ai-prompt-runner:runtime .
+```
+
+Run CLI version check in container:
+
+```bash
+docker run --rm ai-prompt-runner:runtime --version
+```
+
+Run a prompt using environment variables from a local `.env` file:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  -v "$(pwd)/outputs:/app/outputs" \
+  ai-prompt-runner:runtime \
+  --provider openai \
+  --prompt "Explain retry logic"
+```
+
+Build development image:
+
+```bash
+docker build --target dev -t ai-prompt-runner:dev .
+```
+
+Run tests in the dev container:
+
+```bash
+docker run --rm ai-prompt-runner:dev python3 -m pytest
+```
+
+Run lint checks in the dev container:
+
+```bash
+docker run --rm ai-prompt-runner:dev ruff check .
 ```
 
 ## uv Workflow
