@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.9.0] - 2026-03-24
+
+### Added
+
+- Added public Python library API: `ai_prompt_runner.run_prompt(...)` for one-shot execution from application code.
+- Added `src/ai_prompt_runner/api.py` as a thin facade over the existing runtime pipeline (`create_provider` + `PromptRunner`).
+- Exported `run_prompt` from `src/ai_prompt_runner/__init__.py` for a stable import path.
+- Added dedicated unit tests for the public API (`tests/unit/test_api.py`) covering:
+    - success path
+    - system prompt forwarding
+    - provider/configuration failures
+
+### Changed
+
+- Updated documentation to describe library usage and architecture boundary:
+    - `README.md` (`Library Usage` section, structure references)
+    - `docs/architecture.md` (`Public Library Boundary`)
+- Kept library execution behavior aligned with CLI normalized payload semantics.
+
+### Notes
+
+- `v1.9.0` introduces a minimal “CLI first, library second” integration surface.
+- No CLI breaking changes.
+- No output JSON schema/contract changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.8.0] - 2026-03-24
 
 ### Added
