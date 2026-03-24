@@ -67,6 +67,7 @@ Explore the full project overview, roadmap and methodology here:
 - [Environment Variables](#environment-variables)
 - [Configuration File (Optional)](#configuration-file-optional)
 - [CLI Usage](#cli-usage)
+- [Library Usage](#library-usage)
 - [Supported Providers](#supported-providers)
 - [System Prompt (--system)](#system-prompt---system)
 - [Streaming (--stream)](#streaming---stream)
@@ -286,6 +287,24 @@ python3 -m ai_prompt_runner.cli --config config.toml --prompt "Hello world"
 ```
 
 CLI flags and environment variables override values from the config file.
+
+## Library Usage
+
+`ai-prompt-runner` is CLI-first, but also exposes a minimal Python API for one-shot execution.
+
+```python
+from ai_prompt_runner import run_prompt
+
+payload = run_prompt(
+    prompt="Explain retry logic",
+    provider="openai",
+    api_key="your_api_key",
+)
+
+print(payload["response"])
+```
+
+Library mode returns a normalized payload dictionary and does not write output files automatically.
 
 ## Supported Providers
 
@@ -600,6 +619,7 @@ Root/
 │
 ├── src/
 │   └── ai_prompt_runner/
+│       ├── api.py
 │       ├── cli.py
 │       ├── core/
 │       │   ├── errors.py
@@ -659,6 +679,7 @@ Structured Output (JSON + Markdown)
 ```
 
 - `src/ai_prompt_runner/cli.py`: argument parsing and process-level I/O only.
+- `src/ai_prompt_runner/api.py`: public Python facade (`run_prompt`) for one-shot library usage.
 - `src/ai_prompt_runner/core/`: business rules and payload validation.
 - `src/ai_prompt_runner/services/`: external integrations (AI provider implementations).
 - Provider layer follows an explicit contract enforced by reusable contract tests.
