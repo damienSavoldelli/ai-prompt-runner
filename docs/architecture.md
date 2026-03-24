@@ -15,6 +15,7 @@ It does not manage conversational state, orchestration, agents, tool calling, mu
 The repository is organized around clear separation of concerns:
 
 - [`src/ai_prompt_runner/cli.py`](../src/ai_prompt_runner/cli.py): argument parsing, process-level I/O, exit codes, and runtime wiring
+- [`src/ai_prompt_runner/api.py`](../src/ai_prompt_runner/api.py): public Python facade for one-shot library execution
 - [`src/ai_prompt_runner/core/`](../src/ai_prompt_runner/core): business logic, domain models, and payload validation
 - [`src/ai_prompt_runner/services/`](../src/ai_prompt_runner/services): provider abstractions and provider implementations
 - [`src/ai_prompt_runner/utils/`](../src/ai_prompt_runner/utils): filesystem output helpers
@@ -35,6 +36,16 @@ The CLI layer is responsible for:
 - returning stable exit codes
 
 The CLI layer must not contain business logic or provider-specific request logic.
+
+## Public Library Boundary
+
+The public library API is intentionally minimal and lives in [`src/ai_prompt_runner/api.py`](../src/ai_prompt_runner/api.py):
+
+- `run_prompt(...)` is a thin facade over provider creation + `PromptRunner`
+- it returns the same normalized payload contract as CLI execution
+- it does not write JSON/Markdown files by default
+
+This keeps the project CLI-first while enabling safe Python integration without introducing framework-level abstractions.
 
 ## Core Boundary
 
