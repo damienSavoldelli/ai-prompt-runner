@@ -43,7 +43,7 @@ The normalized response payload has this shape:
       "api_endpoint": "https://api.openai.com/v1",
       "model_requested": "gpt-4o-mini",
       "model_resolved": "gpt-4o-mini",
-      "runner_version": "1.6.0",
+      "runner_version": "1.9.0",
       "prompt_hash": "sha256:3a5898f8f9a8c98ef08f2f77ec4d5ffbc5f5f7930fb4780f8114a2abf2ff03f7",
       "runtime": {
         "stream": false,
