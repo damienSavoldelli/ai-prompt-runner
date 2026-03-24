@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.8.0] - 2026-03-24
+
+### Added
+
+- Added practical Docker support with a multi-target `Dockerfile`:
+    - `runtime` target for CLI execution
+    - `dev` target for lint/tests/build workflows
+- Added `.dockerignore` to keep Docker build context clean and avoid local artifact leakage.
+- Added Docker smoke checks in CI (`docker-smoke` job):
+    - build runtime image
+    - run `ai-prompt-runner --version` in container
+
+### Changed
+
+- Updated `README.md` with:
+    - quick links block (`PyPI`, `docs`, project page)
+    - concise `Quick Start` section
+    - architecture flow diagram
+    - new `Docker Workflow` section (build/run/tests/lint examples)
+- Clarified default output location behavior in quick-start docs (`outputs/` created relative to current working directory).
+
+### Notes
+
+- `v1.8.0` is a distribution and developer-experience release focused on reproducible container workflows.
+- No CLI interface breaking changes.
+- No output schema/contract changes.
+- Stateless execution architecture remains unchanged.
+
 ## [v1.7.2] - 2026-03-15
 
 ### Added
