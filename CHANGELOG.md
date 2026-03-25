@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.9.1] - 2026-03-24
+
+### Added
+
+- Added a dedicated non-blocking Docker hardening CI workflow (`.github/workflows/docker-hardening.yml`).
+- Added Docker hardening checks in CI:
+    - Dockerfile lint (`hadolint`)
+    - runtime image size sanity reporting
+    - vulnerability scan with Trivy (`HIGH`/`CRITICAL`)
+
+### Changed
+
+- Hardened Docker image reproducibility by pinning the Python base image with digest in `Dockerfile`.
+- Improved runtime container safety with a fixed non-root user (`UID 10001`) and safer pip defaults.
+- Updated Docker documentation in `README.md` with local hardening commands and reproducibility guidance.
+
+### Notes
+
+- `v1.9.1` is a patch hardening release focused on Docker security/reproducibility for dev/CI.
+- No CLI/runtime behavior changes.
+- No API or output schema/contract changes.
+
 ## [v1.9.0] - 2026-03-24
 
 ### Added
