@@ -643,7 +643,7 @@ def test_cli_warns_on_unknown_capability_in_permissive_mode(
             "--prompt",
             "Hello",
             "--provider",
-            "openai",
+            "openrouter",
             "--top-p",
             "0.95",
             "--out-json",
@@ -655,7 +655,7 @@ def test_cli_warns_on_unknown_capability_in_permissive_mode(
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert "Warning: provider 'openai' reports capability 'top_p' as unknown." in captured.err
+    assert "Warning: provider 'openrouter' reports capability 'top_p' as unknown." in captured.err
 
 
 def test_cli_strict_capabilities_rejects_unknown_option(monkeypatch, capsys) -> None:
@@ -673,7 +673,7 @@ def test_cli_strict_capabilities_rejects_unknown_option(monkeypatch, capsys) -> 
             "--prompt",
             "Hello",
             "--provider",
-            "openai",
+            "openrouter",
             "--top-p",
             "0.95",
             "--strict-capabilities",
@@ -684,7 +684,7 @@ def test_cli_strict_capabilities_rejects_unknown_option(monkeypatch, capsys) -> 
     assert exit_code == 1
     assert called["create_provider"] is False
     assert (
-        "Error: capability check failed: provider 'openai' reports capability "
+        "Error: capability check failed: provider 'openrouter' reports capability "
         "'top_p' as unknown."
     ) in captured.err
 

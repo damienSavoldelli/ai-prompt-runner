@@ -278,6 +278,17 @@ def test_openai_compatible_aliases_expose_unknown_runtime_controls() -> None:
     assert spec.capabilities.max_tokens == "unknown"
 
 
+def test_openai_capabilities_are_marked_supported() -> None:
+    """Canonical OpenAI alias should not warn for core runtime controls."""
+    spec = get_provider_spec("openai")
+    assert spec.capabilities.stream == "supported"
+    assert spec.capabilities.system == "supported"
+    assert spec.capabilities.usage == "supported"
+    assert spec.capabilities.temperature == "supported"
+    assert spec.capabilities.top_p == "supported"
+    assert spec.capabilities.max_tokens == "supported"
+
+
 def test_anthropic_and_google_capabilities_are_marked_supported() -> None:
     """Protocol-specific adapters should expose explicit supported capabilities."""
     anthropic_spec = get_provider_spec("anthropic")
