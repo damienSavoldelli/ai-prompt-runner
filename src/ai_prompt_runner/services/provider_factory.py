@@ -149,10 +149,10 @@ PROVIDER_REGISTRY: dict[str, ProviderSpec] = {
         capabilities=ProviderCapabilities(
             stream="supported",
             system="supported",
-            usage="unknown",
-            temperature="unknown",
-            top_p="unknown",
-            max_tokens="unknown",
+            usage="supported",
+            temperature="supported",
+            top_p="supported",
+            max_tokens="supported",
         ),
     ),
     "openrouter": ProviderSpec(
