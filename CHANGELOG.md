@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.9.2] - 2026-03-27
+
+### Fixed
+
+- Updated provider capability matrix for canonical `openai` alias:
+    - `usage`, `temperature`, `top_p`, and `max_tokens` are now marked as `supported`.
+- Removed misleading permissive-mode warnings for OpenAI runtime controls when using `--provider openai`.
+
+### Changed
+
+- Kept OpenAI-compatible brand aliases (`openrouter`, `groq`, etc.) marked as `unknown` for runtime controls/counters, preserving conservative safety checks for heterogeneous backends.
+- Updated capability coverage tests to assert:
+    - `openai` as explicit `supported`
+    - unknown-capability warnings/errors on `openrouter`
+
+### Notes
+
+- `v1.9.2` is a patch release focused on capability-matrix accuracy.
+- No CLI/runtime API request behavior changes.
+- No output schema/contract changes.
+
 ## [v1.9.1] - 2026-03-24
 
 ### Added
