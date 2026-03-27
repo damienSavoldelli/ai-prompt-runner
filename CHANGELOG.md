@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.9.3] - 2026-03-27
+
+### Fixed
+
+- Corrected README output example to align `metadata.execution_context.runner_version` with the current release line.
+
+### Notes
+
+- `v1.9.3` is a documentation consistency patch release.
+- No CLI/runtime behavior changes.
+- No API or output schema/contract changes.
+
 ## [v1.9.2] - 2026-03-27
 
 ### Fixed
