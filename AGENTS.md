@@ -2,7 +2,24 @@
 
 This document defines strict rules and architectural conventions for AI agents (Codex, etc.) working on this repository.
 
-The agent MUST follow these rules.
+---
+
+# Agent Behavior Rules
+
+The agent MUST:
+
+- Never regenerate entire files without reason
+- Propose diff-style changes
+- Respect architecture boundaries
+- Add tests when modifying core logic
+- Keep code modular
+
+The agent MUST NOT:
+
+- Refactor unrelated files
+- Modify CI without request
+- Introduce unnecessary dependencies
+- Break version compatibility
 
 ---
 
@@ -50,19 +67,6 @@ black .
 
 ---
 
-# Development Tools
-
-- Python 3.11+
-- requests
-- argparse
-- pytest
-- unittest.mock
-- jsonschema (optional future validation)
-- black
-- ruff
-
----
-
 # Architecture Overview
 
 ## Technology Stack
@@ -74,6 +78,7 @@ black .
 - Linting: ruff
 - Formatting: black
 - CI: GitHub Actions
+
 No frontend.
 No styling.
 No framework beyond standard Python tooling.
@@ -167,6 +172,16 @@ IMPORTANT:
 
 ---
 
+# Authentication
+
+- `AI_API_KEY` — API key (required)
+- `AI_API_ENDPOINT` — API endpoint URL (required)
+- `AI_API_MODEL` — model name (optional)
+- Never hardcode these values
+- Always use `os.getenv()`
+
+---
+
 # State Management
 
 v1.0.0:
@@ -178,17 +193,6 @@ Future:
 - Optional history index file (JSON)
 
 ---
-
-# Authentication
-
-- `AI_API_KEY` — API key (required)
-- `AI_API_ENDPOINT` — API endpoint URL (required)
-- `AI_API_MODEL` — model name (optional)
-- Never hardcode these values
-- Always use `os.getenv()`
-
----
-
 
 # Testing
 
@@ -247,7 +251,7 @@ Provider selection and API communication.
 src/ai_prompt_runner/utils/file_io.py
 Filesystem operations.
 
-.github/workflows/ci.yml  
+.github/workflows/ci.yml
 CI pipeline definition.
 
 ---
@@ -261,19 +265,6 @@ CI pipeline definition.
 
 ---
 
-# Debugging Complete Tasks
-
-When debugging:
-
-1. Reproduce with pytest
-2. Add failing test
-3. Fix core logic
-4. Re-run tests
-5. Validate lint
-6. Commit with clear message
-
----
-
 # Important Imports Rules
 
 Always prefer absolute imports:
@@ -281,6 +272,17 @@ Always prefer absolute imports:
 from ai_prompt_runner.core.runner import PromptRunner
 
 Never use relative imports across layers.
+
+---
+
+# Debugging
+
+1. Reproduce with pytest
+2. Add failing test
+3. Fix core logic
+4. Re-run tests
+5. Validate lint
+6. Commit with clear message
 
 ---
 
@@ -344,19 +346,13 @@ Prompt changes may require minor or major bump.
 
 ---
 
-# Agent Behavior Rules
+# Development Tools
 
-The agent MUST:
-
-- Never regenerate entire files without reason
-- Propose diff-style changes
-- Respect architecture boundaries
-- Add tests when modifying core logic
-- Keep code modular
-
-The agent MUST NOT:
-
-- Refactor unrelated files
-- Modify CI without request
-- Introduce unnecessary dependencies
-- Break version compatibility
+- Python 3.11+
+- requests
+- argparse
+- pytest
+- unittest.mock
+- jsonschema (optional future validation)
+- black
+- ruff
