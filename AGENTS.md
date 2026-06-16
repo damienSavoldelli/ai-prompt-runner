@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 # AI Prompt Runner – Agent Guidelines
 
