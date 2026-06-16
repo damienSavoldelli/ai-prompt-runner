@@ -691,7 +691,8 @@ Root/
 ├── pyproject.toml
 ├── uv.lock
 ├── README.md
-└── AGENT.md
+├── AGENTS.md
+└── CLAUDE.md
 ```
 
 ## Architecture Principles
