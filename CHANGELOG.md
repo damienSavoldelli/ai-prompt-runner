@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.9.4] - 2026-06-16
+
+### Changed
+
+- Reorganized `AGENTS.md`: moved Agent Behavior Rules (MUST/MUST NOT) to top of file for agent-first reading priority.
+- Updated `AGENTS.md`: fixed broken CLI command, removed stale/irrelevant sections (Forms/Server Actions, duplicate Database section), corrected project structure and file paths to match current codebase, added environment setup and exact env var names (`AI_API_KEY`, `AI_API_ENDPOINT`, `AI_API_MODEL`).
+- Updated `README.md`: fixed `AGENT.md` reference, added `CLAUDE.md` to project structure.
+
+### Added
+
+- Introduced `CLAUDE.md` for Claude Code support via `@AGENTS.md` import and Claude-specific conventions (commit format, branch naming).
+
+### Notes
+
+- `v1.9.4` is a documentation patch release.
+- No CLI/runtime behavior changes.
+- No API or output schema/contract changes.
+
 ## [v1.9.3] - 2026-03-27
 
 ### Fixed
