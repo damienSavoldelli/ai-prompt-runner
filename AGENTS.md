@@ -1,5 +1,3 @@
-# AGENTS.md
-
 # AI Prompt Runner – Agent Guidelines
 
 This document defines strict rules and architectural conventions for AI agents (Codex, etc.) working on this repository.
@@ -8,10 +6,32 @@ The agent MUST follow these rules.
 
 ---
 
+# Environment Setup
+
+## Bootstrap
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Environment Variables
+
+```bash
+export AI_API_KEY="your-api-key-here"       # required
+export AI_API_ENDPOINT="https://..."         # required
+export AI_API_MODEL="model-name"             # optional
+```
+
+Never hardcode these values. Always load from environment.
+
+---
+
 # Core Commands
 
 ## Run CLI
-python3 -m ai_prompt_runner.cli--prompt "Your text here"
+python3 -m ai_prompt_runner.cli --prompt "Your text here"
 
 ## Run Tests
 pytest
@@ -54,8 +74,6 @@ black .
 - Linting: ruff
 - Formatting: black
 - CI: GitHub Actions
-- Database: None (file-based storage for v1.0.0)
-
 No frontend.
 No styling.
 No framework beyond standard Python tooling.
@@ -67,14 +85,25 @@ No framework beyond standard Python tooling.
 Root/
 │
 ├── src/
-│   ├── cli.py
-│   ├── core/
-│   │   ├── prompt_runner.py
-│   │   └── formatter.py
-│   ├── services/
-│   │   └── ai_provider.py
-│   ├── utils/
-│   │   └── file_manager.py
+│   └── ai_prompt_runner/       # package root — imports start here
+│       ├── cli.py
+│       ├── api.py
+│       ├── core/
+│       │   ├── runner.py
+│       │   ├── models.py
+│       │   ├── validators.py
+│       │   ├── errors.py
+│       │   └── error_taxonomy.py
+│       ├── services/
+│       │   ├── provider_factory.py
+│       │   ├── anthropic_provider.py
+│       │   ├── openai_compatible_provider.py
+│       │   ├── google_provider.py
+│       │   ├── http_provider.py
+│       │   ├── mock_provider.py
+│       │   └── base.py
+│       └── utils/
+│           └── file_io.py
 │
 ├── prompts/
 │   └── structured_output_v1.txt
@@ -86,7 +115,11 @@ Root/
 ├── .github/workflows/ci.yml
 ├── requirements.txt
 ├── README.md
-└── AGENT.md
+└── AGENTS.md
+
+NOTE: physical path src/ai_prompt_runner/ maps to ai_prompt_runner. in imports.
+→ from ai_prompt_runner.core.runner import PromptRunner  ✓
+→ from src.core.runner import PromptRunner               ✗
 
 IMPORTANT:
 - Business logic MUST stay in src/core
@@ -146,27 +179,16 @@ Future:
 
 ---
 
-# Forms and Server Actions
-
-Not applicable in v1.0.0.
-This is a CLI project.
-
----
-
 # Authentication
 
-- API key loaded from environment variable
-- Never hardcode API keys
-- Use os.environ.get()
+- `AI_API_KEY` — API key (required)
+- `AI_API_ENDPOINT` — API endpoint URL (required)
+- `AI_API_MODEL` — model name (optional)
+- Never hardcode these values
+- Always use `os.getenv()`
 
 ---
 
-# Database
-
-None in v1.0.0.
-All persistence is file-based.
-
----
 
 # Testing
 
@@ -213,43 +235,20 @@ Never hit real API in CI.
 
 # Important Files
 
-src/cli.py  
+src/ai_prompt_runner/cli.py
 Entry point of the application.
 
-src/core/prompt_runner.py  
+src/ai_prompt_runner/core/runner.py
 Main business logic.
 
-src/services/ai_provider.py  
-External API communication.
+src/ai_prompt_runner/services/provider_factory.py
+Provider selection and API communication.
 
-src/utils/file_manager.py  
+src/ai_prompt_runner/utils/file_io.py
 Filesystem operations.
 
 .github/workflows/ci.yml  
 CI pipeline definition.
-
----
-
-# Development Notes
-
-Always use:
-
-- python3 -m ai_prompt_runner.cli
-- pytest before committing
-- black .
-- ruff check .
-
-Never:
-
-- Put logic inside CLI
-- Mix I/O and business logic
-- Hardcode secrets
-
-Always:
-
-- Add tests when adding logic
-- Keep functions small
-- Use typing
 
 ---
 
@@ -349,7 +348,7 @@ Prompt changes may require minor or major bump.
 
 The agent MUST:
 
-- Never regenerate entire files without reason@
+- Never regenerate entire files without reason
 - Propose diff-style changes
 - Respect architecture boundaries
 - Add tests when modifying core logic
@@ -361,4 +360,3 @@ The agent MUST NOT:
 - Modify CI without request
 - Introduce unnecessary dependencies
 - Break version compatibility
-@
